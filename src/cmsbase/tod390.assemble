@@ -1,0 +1,44 @@
+tod      TITLE '__timev function                                       +        
+                           Copyright John P. Hartmann 2013.'                    
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Low-level routine that drags.                                       *         
+*                                                                     *         
+* Change activity:                                                    *         
+*  2 Jun 2013  New module by John P. Hartmann.                        *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ copy run390                                                                    
+                                                                                
+__tod390 rsect                                                                  
+__tod390 rmode any                                                              
+__tod390 amode 31                                                               
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* gettimeofday().   The  compiler  is unable to do this without       *         
+* calls  to masses of subroutines where a single d will fit the       *         
+* bill.                                                               *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ extrn __epoch                                                                  
+ begin __timev,base=12                                                          
+ stck 0(2)                                                                      
+ lm 0,1,0(2)                                                                    
+ srdl 0,12                                                                      
+ l 14,=v(__epoch)                                                               
+ sl 1,4(,14)                                                                    
+ jc 11,noc                                                                      
+ bctr 0,0                                                                       
+noc equ *                                                                       
+ sl 0,0(,14)                                                                    
+ d 0,=f'1000000'                                                                
+ st 1,0(,2)                                                                     
+ st 0,4(,2)                                                                     
+ leavelow                                                                       
+* The constant is over in go390.c                                               
+                                                                                
+ END  ,                                                                         

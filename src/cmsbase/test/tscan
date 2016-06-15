@@ -1,0 +1,24 @@
+#!/bin/bash
+
+./sarg "abc bcd c"  3 7 0
+./sarg "a 'b   c'"  2 6 0
+./sarg "a 'b   c" . . . 17
+# No escapes in single quoted strings; but bash needs escape
+./sarg "a 'b c\\'"  2 5 0
+./sarg "a 'b c\\"  . . . 17
+./sarg 'a "b c\'  . . . 16
+./sarg "a 'b c\\ " . . . 17
+./sarg "a >b c\\"  . . . 16
+./sarg "a <>b c\\" . . . 19
+./sarg "a >b c\\" . . . 16
+./sarg "a >b c" 2 2 1
+./sarg "a>b c"  2 2 1
+./sarg "a1>bfile c"  2 3 5
+./sarg "11>bz c"  1 1 2
+./sarg "11>'b' c"  1 1 1
+./sarg "11>>'b' c"  1 1 1
+./sarg "11>a'b' c"  1 1 2
+./sarg "11 a'b' c"  3 5 0
+./sarg ">c"  0 0 1
+./sarg "123 456" 2 6 0
+exit 0

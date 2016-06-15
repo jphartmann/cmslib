@@ -1,0 +1,147 @@
+stor     TITLE 'Basic bootstrap.  Anything running cross comiled needs +        
+               this code.  Copyright John P. Hartmann 2015.'                    
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Code  that  is  common  to  the  pipeline  interface  (or any       *         
+* similar) and building a command (run390.assemble).                  *         
+*                                                                     *         
+* Change activity:                                                    *         
+* 27 Jan 2015  New module by John P. Hartmann.                        *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ copy run390                                                                    
+                                                                                
+__storx rsect ,                                                                 
+__storx amode 31                                                                
+__storx rmode any                                                               
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Initialise  the CMS global area for first use of the library.       *         
+* We are called from assembler since there cannot be any active       *         
+* stack.                                                              *         
+*                                                                     *         
+* We  could  walk back the SVC 204 chain to discover anyone who       *         
+* has  a  stack  frame.   The  tell-tale  would  be that AFP is       *         
+* already a enabled.                                                  *         
+*                                                                     *         
+* If R4 is set, then R6 is the user save area.                        *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ entry __initcg                                                                 
+__initcg ds 0d                                                                  
+* R4 is the cms global area.  If 0, find it via nucon.                          
+ basr 11,0                                                                      
+ using *,11                                                                     
+ ltr 4,4  Is it there?                                                          
+ if      ZERO                                                                   
+   getgbl  usersave=6 And load usersave into R6                                 
+ fi                                                                             
+ clc cgeye,=c'g390'                                                             
+ ber 14 Seems OK  Return R4 too.                                                
+* First time                                                                    
+ xc cmsgbl(20*4),cmsgbl                                                         
+* We must determine stack size; that is a parameter to __gstack                 
+ mvc cgeye,=c'g390'                                                             
+ st 6,cgcusersave    Point to user save                                         
+                                                                                
+ ICM     0,15,userenv                                                           
+ COND    NOTZERO,OI,gsflag1,NOENVIRONMENT                                       
+ zip 0 Have no stack size                                                       
+ icm 15,15,userstack Have it                                                    
+ if      NOTZERO                                                                
+   L 0,0(,15)                                                                   
+ else                                                                           
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Inspect  the environment variable GCC390_STACK_SIZE.  Dealing       *         
+* directly  with  GLOBALV  is  a  nightmare,  so we rely on the       *         
+* trusted pipeline to do it for us.  If the user has no plastic       *         
+* pipes, we mightt get -27 for something.                             *         
+*                                                                     *         
+***********************************************************************         
+   tm gsflag1,NOENVIRONMENT                                                     
+   IF      ZERO                                                                 
+     la 1,stackpl                                                               
+     CMSCALL CALLTYP=EPLIST,COPY=NO,EPLIST=stackepl                             
+     lr 0,15  Negative, perhaps                                                 
+   fi                                                                           
+ fi                                                                             
+ chi 0,4                                                                        
+ cond NOTHIGH,la,0,defstack                                                     
+ st 0,gsstacksize Set default stack size                                        
+* Enable all 16 floating registers as well as IEEE foats.                       
+ stctl 0,0,cgxr0                                                                
+ mvc cgxr0w,cgxr0               Use this scratch area                           
+ oi cgxr0w+1,x'04'            Enable all floating point and BFP                 
+ lctl 0,0,cgxr0w                                                                
+ sr 15,15                                                                       
+ br 14                                                                          
+                                                                                
+defstack equ 32                                                                 
+ wxtrn __cmsstk,__cmsnoe                                                        
+userstack dc a(__cmsstk)  Stack size                                            
+userenv dc a(__cmsnoe)    Environment switch 1 is none                          
+                                                                                
+* We should use our own medicine and make this an encoded pipeline              
+* specification.                                                                
+stackpl dc 0d,cl8'PIPE',fl8'-1'                                                 
+stackepl dc a(gvverb,gvarg,gvarge,0)                                            
+gvverb dc c'pipe '                                                              
+gvarg equ *                                                                     
+ dc c'|command GLOBALV SELECT ENVIRON'                                          
+ dc c'  LIST GCC390_STACK_SIZE'                                                 
+ dc c'|drop 1' selected table is:                                               
+*dc c'|cons'                                                                    
+* Endicott pipeline has no substr                                               
+ dc c'|spec fs = f2 1'                                                          
+ dc c'|strip'                                                                   
+ dc c'|verify /0123456789/'                                                     
+*dc c'|cons'                                                                    
+ dc c'|aggrc'                                                                   
+gvarge equ *                                                                    
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Define  a  shared  private  subpool  so  we can reach it from       *         
+* subcommands that e.g. allocate variables in a REXX pool.  The       *         
+* first thread gets the full name.  The next 9,999 get a number       *         
+* and the ten thousandth will cause things to blow sky high.          *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ entry __initsp                                                                 
+__initsp ds 0h  Set subpool to use and default stack allocation                 
+ basr 11,0                                                                      
+ using *,11                                                                     
+ icm 0,15,cgtcount                                                              
+ if ZERO                                                                        
+   mvc gssubpool,=cl8'g390cms'                                                  
+ else                                                                           
+   cvd 0,gssubpool                                                              
+   unpk gssubpool,gssubpool                                                     
+   oi gssubpool+7,c'0'                                                          
+   mvc gssubpool(4),=cl8'g390cms'                                               
+ fi                                                                             
+ ahi 0,1                                                                        
+ st 0,cgtcount                                                                  
+ la 3,gssubpool                                                                 
+ SUBPOOL CREATE,NAME=(3),TYPE=SHARED,MF=(E,cgplist)                             
+ ltr 2,15 As function result                                                    
+ bzr 14 Return if OK                                                            
+                                                                                
+ APPLMSG TEXT='Unable to create subpool &&1.  RC=&&2,',                +        
+               SUB=(CHARA,((3),8),DEC,(2))                                      
+ lr 15,2 Set rc here too                                                        
+ br 14                                                                          
+                                                                                
+                                                                                
+ print off                                                                      
+ nucon                                                                          
+ print on                                                                       
+ svcsave                                                                        
+ end                                                                            

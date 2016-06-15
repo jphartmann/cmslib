@@ -1,0 +1,181 @@
+stack390 TITLE 'Allocate C stack frame.                                +        
+                           Copyright John P. Hartmann 2014.'                    
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Maintain the C stack frame.  Allow a frame to be allocated by       *         
+* subroutine  calls  and  to maintain multiple stack frames for       *         
+* CMS Pipelines stages written in C.                                  *         
+*                                                                     *         
+* If  gcc390  has  not  been initalised already, you must first       *         
+* call __initcg to initialisa an area.                                *         
+*                                                                     *         
+* Running C programs also means enabling binary floating point,       *         
+* which  also  gets  us all the registers.  This should be done       *         
+* for  the  first stack frame and restored when the last one is       *         
+* removed, which means we must also maintain a use count in the       *         
+* user save area.                                                     *         
+*                                                                     *         
+* Entry conditions for __gstack:                                      *         
+*                                                                     *         
+* R4     Global  area  in  usersave  or somewhere else; used to       *         
+*        cummunicate requirement and actual address &c.               *         
+* R14    Return address.                                              *         
+*                                                                     *         
+* Return values:                                                      *         
+*                                                                     *         
+* R1     Top  of stack frame.  R5 less global size less minimum       *         
+*        frame.                                                       *         
+* R5     Global area at the top of the stack frame group.  Also       *         
+*        stored in the global as the current thread,                  *         
+* R15    Return value.                                                *         
+*                                                                     *         
+* Registers 0, 1, and 11 are used without save/restore.  Caller       *         
+* must preserve these if required.                                    *         
+*                                                                     *         
+* Entry conditions for __rstack:                                      *         
+*                                                                     *         
+* R4     Original USERSAVE from CMS.                                  *         
+* R5     Top of stack frame returned from __gstack.                   *         
+* R14    Return address.                                              *         
+*                                                                     *         
+* Change activity:                                                    *         
+* 30 Apr 2014  New module by John P. Hartmann.                        *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ copy run390                                                                    
+                                                     SPACE 1                    
+stack390 start 0                                                                
+stack390 amode 31                                                               
+stack390 rmode any                                                              
+ dc cl8'stack390'                                                               
+ dc cl8'&sysdatc'                                                               
+ dc cl8'&systime'                                                               
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* __gstack.  Allocate a stack frame.                                  *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+__gstack ds 0h                                                                  
+ entry __gstack                                                                 
+ basr 11,0                                                                      
+ using *,11                                                                     
+ ltr 4,4  Is it there?                                                          
+ COND    ZERO,getgbl          If not, get it                                    
+                                                                                
+ l 0,gsstacksize                                                                
+ sll 0,12-3  Pages to dwds                                                      
+ la 3,gssubpool                                                                 
+* This begger doesn't even set its own name.                                    
+ mvc cgplist(cgplsize),storpl                                                   
+ CMSSTOR OBTAIN,SUBPOOL=(3),DWORDS=(0),    The beggar moves the subp;  +        
+               LOC=ABOVE,BNDRY=PAGE,ERROR=*,MF=(E,cgplist)                      
+ ltr 15,15                                                                      
+ jz gotframe                                                                    
+                                                                                
+ applmsg TEXT='Cannot allocate &&1 doublewords for stack space',       +        
+               SUB=(DEC,(0))                                                    
+ la 15,20                                                                       
+ br 14                                                                          
+                                                                                
+storpl   CMSSTOR OBTAIN,LOC=ABOVE,BNDRY=PAGE,MF=L                               
+                                                                                
+gotframe equ *                                                                  
+ lr 15,1  Bottom of frame                                                       
+ sll 0,3  Size in bytes                                                         
+ ar 15,0  High address of stack                                                 
+*ahi 15,-ctglobalsize  To beginning of stack                                    
+ l 2,=v(__cmstgs)  Address of size                                              
+ s 15,0(,2)                                                                     
+ st 15,cgtglobal                                                                
+ lr 5,15   And also beginning stack size                                        
+                                                                                
+ l 2,0(,2) Get length                                                           
+ bctr 2,0                                                                       
+ ex 2,*+4                                                                       
+ using cmsthreadglobal,5                                                        
+ xc cmsthreadglobal,cmsthreadglobal                                             
+ st 1,ctguardpage For later restore                                             
+ mvc ctghead,ourname Set our particulars                                        
+ mvc ctgsubpool,gssubpool Set subpool name                                      
+ st 4,ctgacmsgbl                                                                
+ srl 0,12 Stack size in 4K frames                                               
+ st 0,ctgstacksize  In pages                                                    
+ mvc ctgflag1,gsflag1                                                           
+ l 1,ctguardpage For later restore                                              
+ iske 0,1                                                                       
+ stc 0,ctguardkey                                                               
+ sr 0,0                                                                         
+ sske 0,1                     And set it to zero                                
+*                                                                               
+ lr 15,5                                                                        
+ ahi 15,-200                  Basic stack frame to save plus one                
+ stm 0,15,100(15) Save all registers                                            
+ l 14,=v(__cmstgi) Initialiser                                                  
+ lr 2,5 Pass the thread block                                                   
+ basr 14,14 Go there                                                            
+  lm 0,15,100(15) Get all registers                                             
+  lr 1,5 Where to return the stack                                              
+  ahi 1,-96 Inital frame                                                        
+ SR      2,2                                                                    
+ SR      15,15                OK                                                
+ br 14 OK return                                                                
+                                                                                
+* vector of addresses to userspecified parameters.  Also our                    
+* identity in global                                                            
+userparms dc 0d                                                                 
+ourname dc cl8'&threadchkw.'                                                    
+ dc f'&version.,&release.,&modification' V.R.Modification                       
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* __rstack.  Release stack.                                           *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ entry __rstack                                                                 
+__rstack ds 0d                                                                  
+ getregs ,                                                                      
+ ic 0,ctguardkey                                                                
+ l 1,ctguardpage                                                                
+ sske 0,1                     Restore key                                       
+ basr 11,0                                                                      
+ using *,11                                                                     
+ SUBPOOL DELETE,NAME=ctgsubpool,MF=(E,cgplist)                                  
+ j clearactive                                                                  
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* __sstack.   Set  active  stack,  perhaps  in  preparation for       *         
+* switching to a new pipeline stage.                                  *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+__sstack ds 0d Restore stack                                                    
+ entry __sstack                                                                 
+ st 5,cgtglobal                                                                 
+ br 14                                                                          
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* __cstack.  Clear the active stack, perhaps in preparation for       *         
+* calling the pipeline dispatcher.                                    *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ drop ,                                                                         
+__cstack ds 0d                                                                  
+ entry __cstack                                                                 
+ getregs ,                                                                      
+clearactive ds 0h                                                               
+ xc cgtglobal,cgtglobal No active C stack                                       
+ br 14                                                                          
+                                                                                
+ print off                                                                      
+ nucon                                                                          
+ print on                                                                       
+ svcsave                                                                        
+ END  ,                                                                         

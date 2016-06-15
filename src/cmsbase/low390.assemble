@@ -1,0 +1,343 @@
+low      TITLE 'Low-level interfaces to CMS that are called from the li+        
+               brary       Copyright John P. Hartmann 2013.'                    
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Low-level routines.  Separate to allow build without main.          *         
+*                                                                     *         
+* Change activity:                                                    *         
+*  2 Jun 2013  New module by John P. Hartmann.                        *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ copy run390                                                                    
+                                                                                
+__low390 rsect                                                                  
+__low390 amode 31                                                               
+__low390 rmode any                                                              
+ dc cl8'__low390'                                                               
+ dc cl8'&sysdatc'                                                               
+ dc cl8'&systime'                                                               
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Return the current stack frame's address or the global thread       *         
+* area.                                                               *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ entry __stktop                                                                 
+__stktop equ *                                                                  
+ lr 2,15                                                                        
+ br 14                                                                          
+                                                                                
+ entry __getgbl                                                                 
+__getgbl equ *                                                                  
+ getregs ,                                                                      
+ lr 2,5                                                                         
+ br 14                                                                          
+ drop ,                                                                         
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Get heap storage.                                                   *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ begin __gethp,base=12                                                          
+ getregs ,                                                                      
+*APPLMSG TEXT='Obtaining &&1 bytes.',SUB=(DEC,(2))                              
+ lr 0,2                                                                         
+ mvc cgplist(cgplsize),getstor                                                  
+ CMSSTOR OBTAIN,SUBPOOL=ctgSUBPOOL,BYTES=(2),                          +        
+               LOC=ABOVE,ERROR=*,MF=(E,CGPLIST)                                 
+ ltr 15,15                                                                      
+ jz gotstore                                                                    
+ sr 2,2                                                                         
+ j donehp                                                                       
+gotstore equ *                                                                  
+ st 0,0(,1)                                                                     
+ lr 2,1                                                                         
+donehp equ *                                                                    
+ leavelow                                                                       
+ drop ,                                                                         
+                                                                                
+GETSTOR  CMSSTOR OBTAIN,LOC=ABOVE,MF=L                                          
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Release heap storage.                                               *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ begin __freehp,base=12                                                         
+ getregs ,                                                                      
+ mvc cgplist(cgplsize),relstor                                                  
+ CMSSTOR RELEASE,BYTES=(2),SUBPOOL=CTGSUBPOOL,                         +        
+               ADDR=(3),MF=(E,CGPLIST)                                          
+ lr 2,15                                                                        
+ leavelow                                                                       
+ ds 0d                                                                          
+ drop ,                                                                         
+                                                                                
+RELSTOR  CMSSTOR RELEASE,MF=L                                                   
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Set psw key.  Return previous key.  I'm sure one could cajole       *         
+* gcc  into  doing this, but it is just too much hazzle to cope       *         
+* with its rigmarole.                                                 *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ enter __pswkey                                                                 
+ lr 3,2                                                                         
+ sr 2,2                                                                         
+ ipk ,                                                                          
+ spka 0(3)                                                                      
+ br 14                                                                          
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Issue CMSCALL and feed back registers 0 and 1 if requested.         *         
+*                                                                     *         
+* extern int __svc204(struct eplist * epl, char * olplist,            *         
+*    unsigned flags, int * regfb);                                    *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ begin __svc204,save=10  All work registers are busy                            
+ getregs cmsgbl=11,thread=10                                                    
+ st 13,ctgcurrstack                                                             
+ flagon cmsactive Indicate open for business                                    
+ lr 0,2                                                                         
+ lr 1,3                                                                         
+ lr 15,4   set flags                                                            
+ svc 204                                                                        
+ lr 2,15                                                                        
+ ltr 5,5                                                                        
+ jz nofb                                                                        
+ stm 0,1,0(5)                                                                   
+nofb equ *                                                                      
+ flagoff cmsactive Indicate not open for business                               
+ leavelow                                                                       
+ drop ,                                                                         
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Write a line to the terminal.  This is a convenience for code       *         
+* that  could  have  called  __svc204.  Mostly used for initial       *         
+* debug.  Programs should use stdio.                                  *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ entry __say                                                                    
+__say ds 0d                                                                     
+ basr 5,0                                                                       
+ using *,5                                                                      
+ lr 4,15 Save for return code                                                   
+ ltr 3,3 Auto length?                                                           
+ IF      MINUS                                                                  
+   sr 3,3                                                                       
+   repeat                                                                       
+     la 1,0(3,2)                                                                
+     cli 0(1),0                                                                 
+   UNTIL EQUAL,INCR=3                                                           
+ fi                                                                             
+ mvc 16(lwlen,15),lwl                                                           
+ LINEWRT DATA=((2),(3)),MF=(E,16(15))                                           
+ ltr 2,15                                                                       
+ lr 15,4                                                                        
+ bzr 14                                                                         
+ halt reg=0                                                                     
+ br 14                                                                          
+lwl LINEWRT MF=L                                                                
+lwlen equ *-lwl                                                                 
+ drop 5                                                                         
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* General  code to switch to standard save area conventions and       *         
+* use a type-1 parameter list.                                        *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ begin __oscall,base=12,save=11,sp=11,frame=18*4                                
+ lr 13,15                                                                       
+ lr 1,3                                                                         
+ lr 15,2                                                                        
+ basr 14,15                                                                     
+ lr 2,15                                                                        
+ leavelow                                                                       
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Return the address of an active disk.                               *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ begin __adtlkp,base=12                                                         
+ lr 1,2        Get mode letter                                                  
+ ahi 1,-24     Only thing that matters                                          
+ using nucon,0                                                                  
+ sr 2,2        Assume not found                                                 
+ l 15,aadtlkp                                                                   
+ balr 14,15                                                                     
+ ltr 15,15                                                                      
+ jnz noadt                                                                      
+ lr 2,1                                                                         
+noadt equ *                                                                     
+ leavelow                                                                       
+                                                                                
+__halt ds 0d                                                                    
+ entry __halt                                                                   
+ halt reg=0                                                                     
+ br 14                                                                          
+                                                                                
+ ltorg                                                                          
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Low level library routines.                                         *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ enter setjmp           (jump buffer)                                           
+ stm 6,15,0(2)                                                                  
+ allfpr std,40(,2)                                                              
+ sr 2,2                                                                         
+ br 14                                                                          
+                                                                                
+ enter longjmp                                                                  
+ lm 6,15,0(2)                                                                   
+ allfpr ld,40(,2)                                                               
+ ltr 2,3                                                                        
+ bnzr 14                                                                        
+ la 2,1                                                                         
+ br 14                                                                          
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Diagnose instructions                                               *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ enter _diag000                                                                 
+ lr 4,2                                                                         
+ lr 2,3                                                                         
+ dc x'83,43,0000'                                                               
+ sr 2,3 Count stored                                                            
+ br 14                                                                          
+                                                                                
+ enter _diag008                                                                 
+ dc x'83,23,0008'                                                               
+ br 14                                                                          
+                                                                                
+ enter _diag00c,base=4                                                          
+ dc x'83,20,000c'                                                               
+ ltr 3,3                                                                        
+ bzr 14                                                                         
+ lm 0,1,16(2)                                                                   
+ d 0,=f'1000000'                                                                
+ st 0,16+4(,2)                                                                  
+ st 1,16(,2)                                                                    
+ lm 0,1,24(2)                                                                   
+ d 0,=f'1000000'                                                                
+ st 0,24+4(,2)                                                                  
+ st 1,24(,2)                                                                    
+ br 14                                                                          
+ drop 4                                                                         
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* This entry point is called from the CMS SVC handler.                *         
+*                                                                     *         
+* Entry  for  a  subcommand that we have set up to handler for.       *         
+* The  C  code  to  run is obtained through the userword Set up       *         
+* things and go to start-up routine.                                  *         
+*                                                                     *         
+* CMS  has  a  little  surprise  for  us  here.  R13 is not the       *         
+* usersave identified in the SVCSAVE.                                 *         
+*                                                                     *         
+* Set  up  the  current USERSAVE to point to the stack frame so       *         
+* that low level routines can figure out what to do.                  *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ entry __subcmd                                                                 
+__subcmd stm 14,12,12(13)  From CMS to process th subcommand                    
+ using scblock,2                                                                
+ basr 12,0                                                                      
+ using *,12                                                                     
+                                                                                
+ lr 5,0 Get plist safe                                                          
+ icm 3,15,scbwkwrd                                                              
+ jz badsubcom                                                                   
+                                                                                
+ using  subc,3                Our subcommand block                              
+ clc subceye,=c'subc'                                                           
+ jne badsubcom                                                                  
+                                                                                
+ icm 11,15,subcgbl Get thread global                                            
+ jz badsubcom                                                                   
+                                                                                
+ using cmsthreadglobal,11                                                       
+ clc ctgeye,=cl8'&threadchkw.'                                                  
+ je goodckw                                                                     
+ la 3,scbname                                                                   
+ la 4,ctgeye                                                                    
+ la 5,=cl8'&threadchkw.'                                                        
+ APPLMSG TEXT='subcommand &&1 user word ptr ''&&2''.  Want ''&&3''.',  +        
+               SUB=(CHARA,((3),8),CHARA,((4),8),CHARA,((5),8))                  
+ j badsubcom                                                                    
+                                                                                
+goodckw ds 0h                                                                   
+ flagtm cmsactive Open for business?                                            
+ jno badsubcom                                                                  
+                                                                                
+* OK, we believe in this guy                                                    
+ L       9,CTGACMSGBL         Get original cms global                           
+ using cmsgbl,9                                                                 
+ clc cgeye,=cl4'&cgeye'                                                         
+ jne badsubcom                                                                  
+                                                                                
+ getgbl reg=8,qual=new        In the new SVC save                               
+ mvc new.cmsgbl(cgsize),cmsgbl Get us a copy for thread                         
+ drop 8                       But don't resolve to it                           
+                                                                                
+ l 15,ctgcurrstack Get stack                                                    
+ drop 9                                                                         
+ ahi 15,-96 Allocate a frame                                                    
+ flagoff cmsactive Reject recursions                                            
+ l  10,ctgrecursion Bump recursions                                             
+ la 0,1(,10)                                                                    
+ st 0,ctgrecursion                                                              
+* Build plist                                                                   
+* R2 already set up with scblock                                                
+* R3 is struct cmssubcom also in place                                          
+* R4 is the usersave for this invocation, for the flags                         
+ lr 4,13 USERSAVE                                                               
+* R5 is the EPLIST, already in place                                            
+ l 14,=v(cmssubex) Get exit entry                                               
+ basr 14,14 Go process                                                          
+* Remember 0-5 are GONE                                                         
+ flagon cmsactive                                                               
+ st 10,ctgrecursion                                                             
+ lr 15,2                                                                        
+ l 14,12(,13)                                                                   
+ lm 0,12,20(13)                                                                 
+ br 14                        Back to dmsits                                    
+                                                                                
+badsubcom equ *                                                                 
+ lm 14,12,12(13)                                                                
+ lhi 15,-1                                                                      
+ br 14                                                                          
+ drop                                                                           
+                                                                                
+ ltorg ,                                                                        
+ print off                                                                      
+ nucon                                                                          
+ print on                                                                       
+ svcsave                                                                        
+ scblock                                                                        
+ end                                                                            

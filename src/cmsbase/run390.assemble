@@ -1,0 +1,133 @@
+run390   title 'Assembler routines for the gcc cross compiler.'                 
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* This module used to contain all the Assembler code to support       *         
+* gcc   4.6.0   cross   compiles   for   -m31   and   -march=g5       *         
+* -fexec-charset.                                                     *         
+*                                                                     *         
+* Now, however it contains only the bootstrap to invoke main or       *         
+* cmsmain  It  has  no  other  entry points to avoid dragging a       *         
+* reference to main() into a subroutine.                              *         
+*                                                                     *         
+* The intent is that this will assemble also with the system XF       *         
+* assembler  (IFOX)  with  suitable  uppercasing, but this will       *         
+* need  major  surgery with the macros to work in a 370 virtual       *         
+* machine;  and  so  will the compiler output.  Anyhow, this is       *         
+* one way to to test the CMS architecture:                            *         
+*                                                                     *         
+*        tm mcknpsw+1,2  Wait bit on?  370 if so                      *         
+*                                                                     *         
+* The routines in this module are declared in cmsbase.h.              *         
+*                                                                     *         
+* Change activity:                                                    *         
+* 17 Jan 2015  jph Add cmsmain.                                       *         
+* 30 Apr 2014  jph Move stack allocation to separate module.          *         
+* 11 Aug 2011  jph Add __pswkey.                                      *         
+* 11 Aug 2011  jph Make storage requests conditional.                 *         
+* 30 Jun 2011  jph Put stack on page boundary and use guard           *         
+*                  page.                                              *         
+* 16 Jun 2011  New module by John P. Hartmann.                        *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ copy run390                                                                    
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Startup.   This  entry  must  be called as a command with SVC       *         
+* assisted  linkage  (CMSCALL).  Direct branch will "work", but       *         
+* the caller will not regain control.                                 *         
+*                                                                     *         
+* Build  the  stack frame on a page boundary and set the key of       *         
+* the bottom page to zero as a guard.                                 *         
+*                                                                     *         
+* Set  the  afp  control bit on in CR0 so we can use the binary       *         
+* floating point instructions.                                        *         
+*                                                                     *         
+* Note,  however, that this guard is not completely safe.  If a       *         
+* stack  frame  were to be allocated that is larger than 4K, it       *         
+* is  possible  for runtime to modify storage outside the frame       *         
+* before  it  crashes,  but  at least we shall catch a moderate       *         
+* runaway.                                                            *         
+*                                                                     *         
+* All storage is allocated in a specific private subpool, which       *         
+* means that CMS will do all the heap cleanup on SVC exit.            *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+* You cannot use START here.  (1) we want a reentrant section, and              
+* (2) CMS relocation fouls up on it.                                            
+                                                                                
+run390 rsect ,                                                                  
+run390 amode 31                                                                 
+run390 rmode any                                                                
+ dc cl8'gcc390'                                                                 
+ dc cl8'&sysdatc'                                                               
+ dc cl8'&systime'                                                               
+ wxtrn cmsmain                                                                  
+                                                                                
+go ds 0d                                                                        
+_start equ go                                                                   
+ entry _start                                                                   
+* CMS does not require any registers other than R14 to return.                  
+* We keep R14 to branch back to the exit SVC, wherever it is.                   
+* We use the rest of the user save area as a control block.                     
+ st 14,12(,13) All we need to save is R14; the rest are ignored                 
+ basr 12,0  Need a base for literals &c                                         
+ using *,12                                                                     
+ lr 8,0     NPL Get these out of the way of the volatile regs                   
+ lr 9,1     OPL                                                                 
+ lr 6,13                                                                        
+ using USERSAVE,6                                                               
+ la 4,wheregoparms            Set global as argument                            
+ using cmsgbl,4                                                                 
+ l 14,=v(__initcg)                                                              
+ basr 14,14  __initcg              And also the subpool                         
+ ltr 15,15                                                                      
+ jnz __erret                                                                    
+ l 14,=v(__initsp)                                                              
+ basr 14,14 Go get a subpool                                                    
+ ltr 15,15                                                                      
+ jnz __erret                                                                    
+                                                                                
+ la 4,wheregoparms            Set global as argument                            
+ l 15,=v(__gstack)                                                              
+ basr 14,15                   Go allocate the stack                             
+ ltr 15,15                                                                      
+ jnz __erret  ERRET is a label in SVCSAVE                                       
+                                                                                
+ lr 7,1 Save top of stack                                                       
+ lr 2,8 EPL                                                                     
+ lr 3,9 OPL                                                                     
+ l  5,cgtglobal Get thread global before R4 goes away                           
+ lr 4,6  Get USERSAVE                                                           
+ lr 15,7 Get top of stack                                                       
+ l 14,=v(cmsmain)                                                               
+ basr 14,14                   And do remember to go there                       
+ drop ,                                                                         
+* We  come  back  here  when  __go390  took  a  dislike  to the       *         
+* parameters.   Nothing  was  started  and  nothing needs to be       *         
+* restored/returned.   The stack goes away when we exit the SVC       *         
+* level.   Just  go  back to CMS.  Well, that's the theory, but       *         
+* perhaps  we  at  least  need  to  deal  with the stack guard.       *         
+* Certainly, this makes minimal work:                                 *         
+ using *,14                                                                     
+ entry __exit                                                                   
+ extrn __rstack                                                                 
+ l    14,=v(__rstack)                                                           
+ drop 14                                                                        
+ basr  14,14                                                                    
+ cmsret RC=(2)                                                                  
+__exit ds 0h                                                                    
+                                                                                
+__erret equ *                                                                   
+ l  14,12(,13)                                                                  
+ br 14 Terminate command                                                        
+ drop                                                                           
+                                                                                
+ print off                                                                      
+ nucon                                                                          
+ print on                                                                       
+ svcsave                                                                        
+ end go                                                                         

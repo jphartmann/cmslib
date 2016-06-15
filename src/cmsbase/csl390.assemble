@@ -1,0 +1,34 @@
+csl      TITLE 'Interface to CSL                                       +        
+                           Copyright John P. Hartmann 2013.'                    
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Low-level stuff that drags.                                         *         
+*                                                                     *         
+* Change activity:                                                    *         
+*  2 Jun 2013  New module by John P. Hartmann.                        *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ copy run390                                                                    
+                                                                                
+__csl390 rsect                                                                  
+__csl390 rmode 31                                                               
+__csl390 amode 31                                                               
+                                                                                
+***********************************************************************         
+*                                                                     *         
+* Call  a  CMS  callable  service.   Could  have been done with       *         
+* oscall(), but this came first.                                      *         
+*                                                                     *         
+***********************************************************************         
+                                                                                
+ begin __csl,base=12,save=11,sp=11,frame=18*4                                   
+ lr 13,15                                                                       
+ lr 1,2                                                                         
+ l 15,=v(dmscsl)                                                                
+ basr 14,15                                                                     
+ lr 2,15                                                                        
+ leavelow                                                                       
+                                                                                
+ END  ,                                                                         
