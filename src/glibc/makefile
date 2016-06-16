@@ -3,4 +3,4 @@ CSRC:=tsearch
 
 include ../cms390.makefile
 
-${GENDIR}/tsearch.text: ../include/search.h
+${GENDIR}/tsearch.s: ../include/search.h

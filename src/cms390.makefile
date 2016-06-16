@@ -50,8 +50,6 @@ G:=${GENDIR}
 .SUFFIXES: .text .assemble .listing .c .s
 .PHONY: all asms copy deck lib cleanlib main
 
-OK:=yes
-
 ifndef BASE
  BASE:=..
 endif
@@ -59,16 +57,23 @@ endif
 # No Bourne shell, please and thank you.
 SHELL:=${shell which bash}
 ifndef SHELL
-OK=no
+NOTOK=1
 all:
 	@echo Please install the bash shell.
 endif
 
 G2A:=${shell which gas2asm}
 ifndef G2A
-OK=no
+NOTOK=1
 all:
 	@echo Please install the bash gas2asm from https://github.com/jphartmann/gas2asm.git
+endif
+
+# We assume that you have the login information in .netrc
+ifndef VMHOST
+NOTOK=1
+all:
+	@echo Please define the VMHOST environment variable to contain the host name or IP address of your VM system.
 endif
 
 HLASM:=${shell which hlasm}
@@ -78,13 +83,6 @@ ifneq "MACHINE" "s390x"
  GCCBASE:=PATH=${HOME}/x-tools/s390x-ibm-linux-gnu/bin
  CC:=${GCCBASE} s390x-ibm-linux-gnu-cc
 # Else no need for the normal PATH; the compiler is self contained.
-endif
-
-# We assume that you have the login information in .netrc
-ifndef VMHOST
-OK=no
-all:
-	@echo Please define the VMHOST environment variable to contain the host name or IP address of your VM system.
 endif
 
 CFLAGS+=-nostdinc -I. -I${BASE}/include
@@ -97,7 +95,9 @@ EFLAGS:=-fexec-charset=IBM-1047 -Wno-format
 # support -e reliably.	We do this here, but using /bin/echo works well
 # with -e.
 
-FTP:=echo site fix 80; echo lcd $G; echo put
+STAGE=${BASE}/../stage
+
+FTP:=echo site fix 80; echo lcd ${STAGE}; echo put
 UPDECK:=(echo bin; ${FTP} @${LIB}.text ${LIB}.text) \
 	|ftp ${VMHOST}
 UPASMS:=(${FTP}  @${LIB}.assemble ${LIB}.assemble) \
@@ -128,23 +128,23 @@ ASMFLAGS:= \
 #	 For the assembled text decks
 @TEXT:=${addprefix $G/,${addsuffix .text,${ASMSRC} ${CSRC}}}
 
-ifeq "${OK}" "yes"
+ifndef NOTOK
 ifdef HLASM
  ${info Using local assembler: ${HLASM}}
-all: deck
 # Assemble locally
-deck: ${@TEXT}
 ifdef @TEXT
-	cat ${@TEXT} >$G/@${LIB}.text
+all: ${STAGE}/@${LIB}.text
+
+${STAGE}/@${LIB}.text: ${@TEXT} | ${STAGE}
+	cat ${@TEXT} >${STAGE}/@${LIB}.text
 	${UPDECK}
+
+${@TEXT}: ${BASE}/macros/*
 endif
-else
- ${info No local assembler: ${HLASM}}
 # Just create the ASSEMBLE files for upload
-all: asms
 endif
 else
- ${info make suppressed.  OK = ${OK}}
+ ${error make suppressed due to errors reported above.}
 all:
 	;
 endif
@@ -152,20 +152,23 @@ endif
 # If	there  is  no	workstation  assembler,  this  becomes the default
 # target.	On  VM,	assemble  with  the	BATCH  option or spit out the
 # individual files.
+ifdef ASMA
+all: @${LIB}.assemble
 
-asms: ${@ASMA}
-	cat ${@ASMA} >$G/@${LIB}.assemble
+@${LIB}.assemble: ${@ASMA} | ${STAGE}
+	cat ${@ASMA} >${STAGE}/@${LIB}.assemble
 	${UPASMS}
+endif
 
 ifdef COPY
-asms: copy
+all: ${STAGE}/@${LIB}.copy
 
-copy: ${COPY} | $G
+${STAGE}/@${LIB}.copy: ${COPY} | ${STAGE}
 # We want both the prototypes and the member names in uppercase.
 # ^^ to uppercase is no doubt a recent Bash concept.
 	( for n in ${COPY} ; do \
 		fn=$${n%.*}; fnu=$${fn^^}; \
-		echo '*COPY' $${fnu} ; cat $$n; done ) >$G/@${LIB}.copy
+		echo '*COPY' $${fnu} ; cat $$n; done ) >${STAGE}/@${LIB}.copy
 	${UPCOPY}
 endif
 
@@ -176,7 +179,6 @@ ${@S}: ${BASE}/include/*.h
 ifdef H
 ${@S}: $H
 endif
-${@TEXT}: ${BASE}/macros/*
 
 # Patterns and recipes
 
@@ -199,3 +201,6 @@ $G/%.text: %.assemble
 
 $G:
 	mkdir -p $G
+
+${STAGE}:
+	mkdir -p ${STAGE}
