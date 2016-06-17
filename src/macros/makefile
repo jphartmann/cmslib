@@ -4,7 +4,6 @@
 #			prototype must match the case of the member.  So keep them up!
 
 LIB:=fplgcc
-default: copy
 
 COPY:=${wildcard *.macro}
 

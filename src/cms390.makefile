@@ -44,11 +44,14 @@
 # stakced file; it will have one member only.)
 
 # Intermediary files are stored in this directory
-export GENDIR:=z
+ifndef GENDIR
+ export GENDIR:=z
+endif
 G:=${GENDIR}
 
 .SUFFIXES: .text .assemble .listing .c .s
-.PHONY: all asms copy deck lib cleanlib main
+.PHONY: build
+.SECONDARY:
 
 ifndef BASE
  BASE:=..
@@ -58,30 +61,29 @@ endif
 SHELL:=${shell which bash}
 ifndef SHELL
 NOTOK=1
-all:
-	@echo Please install the bash shell.
+${info Please install the bash shell.}
 endif
 
-G2A:=${shell which gas2asm}
-ifndef G2A
+@G2A:=${shell which gas2asm}
+ifndef @G2A
 NOTOK=1
-all:
-	@echo Please install the bash gas2asm from https://github.com/jphartmann/gas2asm.git
+${info Please install gas2asm from https://github.com/jphartmann/gas2asm.git}
 endif
 
 # We assume that you have the login information in .netrc
 ifndef VMHOST
 NOTOK=1
-all:
-	@echo Please define the VMHOST environment variable to contain the host name or IP address of your VM system.
+${info Please define the VMHOST environment variable to contain the host name or IP address of your VM system.}
 endif
 
-HLASM:=${shell which hlasm}
-MACHINE:=${shell uname -m}
+ifndef NOHLASM
+@HLASM:=${shell which hlasm}
+endif
 
-ifneq "MACHINE" "s390x"
- GCCBASE:=PATH=${HOME}/x-tools/s390x-ibm-linux-gnu/bin
- CC:=${GCCBASE} s390x-ibm-linux-gnu-cc
+@MACHINE:=${shell uname -m}
+ifneq "@MACHINE" "s390x"
+ @GCCBASE:=PATH=${HOME}/x-tools/s390x-ibm-linux-gnu/bin
+ CC:=${@GCCBASE} s390x-ibm-linux-gnu-cc
 # Else no need for the normal PATH; the compiler is self contained.
 endif
 
@@ -95,14 +97,16 @@ EFLAGS:=-fexec-charset=IBM-1047 -Wno-format
 # support -e reliably.	We do this here, but using /bin/echo works well
 # with -e.
 
-STAGE=${BASE}/../stage
+@STAGE=${BASE}/../stage
 
-FTP:=echo site fix 80; echo lcd ${STAGE}; echo put
-UPDECK:=(echo bin; ${FTP} @${LIB}.text ${LIB}.text) \
+@FTP:=echo site fix 80; echo lcd ${@STAGE}; echo put
+@UPDECK:=(echo bin; ${@FTP} @${LIB}.text ${LIB}.text) \
 	|ftp ${VMHOST}
-UPASMS:=(${FTP}  @${LIB}.assemble ${LIB}.assemble) \
+@UPASMS:=(${@FTP}  @${LIB}.assemble ${LIB}.assemble) \
 	|ftp ${VMHOST}
-UPCOPY:=(${FTP}  @${LIB}.copy ${LIB}.copy) \
+@UPCOPY:=(${@FTP}  @${LIB}.copy ${LIB}.copy) \
+	|ftp ${VMHOST}
+@UPTXTLIB:=(echo bin; ${@FTP}  @${LIB}.txtlib ${LIB}.txtlib) \
 	|ftp ${VMHOST}
 
 ifndef MACROBASE
@@ -119,57 +123,58 @@ ASMFLAGS:= \
 
 # For assemble files
 #	 List of source files
-@ASMN:=${ASMSRC}} ${addprefix $G/,${CSRC}}
+@ASMN:=${ASMSRC} ${addprefix $G/,${CSRC}}
 # What needs to be redone when include files change
 @S:=${addsuffix .s,${addprefix $G/,${CSRC}}}
 #	 For the stacked list
-@ASMA:=${addsuffix .assemble, ${ASMSRC}} \
-	${addprefix $G/,${addsuffix .assemble,${CSRC}}}
+@ASMA:=${addsuffix .assemble, ${@ASMN}}
 #	 For the assembled text decks
 @TEXT:=${addprefix $G/,${addsuffix .text,${ASMSRC} ${CSRC}}}
+#${info text ${@TEXT}}
 
 ifndef NOTOK
-ifdef HLASM
- ${info Using local assembler: ${HLASM}}
+ifdef @HLASM
+#${info Using local assembler: ${@HLASM}}
 # Assemble locally
 ifdef @TEXT
-all: ${STAGE}/@${LIB}.text
+build: ${@TEXT}
+build: ${@STAGE}/@${LIB}.text
 
-${STAGE}/@${LIB}.text: ${@TEXT} | ${STAGE}
-	cat ${@TEXT} >${STAGE}/@${LIB}.text
-	${UPDECK}
+${@STAGE}/@${LIB}.txtlib: ${@TEXT} | ${@STAGE}
+	txtlib ${@STAGE}/@${LIB}.text ${@TEXT}
+	${@UPTXTLIB}
 
 ${@TEXT}: ${BASE}/macros/*
 endif
 # Just create the ASSEMBLE files for upload
 endif
 else
- ${error make suppressed due to errors reported above.}
-all:
-	;
+${error make suppressed due to errors reported above.}
 endif
 
 # If	there  is  no	workstation  assembler,  this  becomes the default
 # target.	On  VM,	assemble  with  the	BATCH  option or spit out the
 # individual files.
-ifdef ASMA
-all: @${LIB}.assemble
+ifdef @ASMA
+#${info Assemble: ${@ASMA}}
+build: ${@STAGE}/@${LIB}.assemble
 
-@${LIB}.assemble: ${@ASMA} | ${STAGE}
-	cat ${@ASMA} >${STAGE}/@${LIB}.assemble
-	${UPASMS}
+${@STAGE}/@${LIB}.assemble: ${@ASMA} | ${@STAGE}
+	cat ${@ASMA} >${@STAGE}/@${LIB}.assemble
+	${@UPASMS}
 endif
 
 ifdef COPY
-all: ${STAGE}/@${LIB}.copy
+#@${info Copy: ${COPY}}
+build: ${@STAGE}/@${LIB}.copy
 
-${STAGE}/@${LIB}.copy: ${COPY} | ${STAGE}
+${@STAGE}/@${LIB}.copy: ${COPY} | ${@STAGE}
 # We want both the prototypes and the member names in uppercase.
 # ^^ to uppercase is no doubt a recent Bash concept.
 	( for n in ${COPY} ; do \
 		fn=$${n%.*}; fnu=$${fn^^}; \
-		echo '*COPY' $${fnu} ; cat $$n; done ) >${STAGE}/@${LIB}.copy
-	${UPCOPY}
+		echo '*COPY' $${fnu} ; cat $$n; done ) >${@STAGE}/@${LIB}.copy
+	${@UPCOPY}
 endif
 
 clean:
@@ -202,5 +207,5 @@ $G/%.text: %.assemble
 $G:
 	mkdir -p $G
 
-${STAGE}:
-	mkdir -p ${STAGE}
+${@STAGE}:
+	mkdir -p ${@STAGE}

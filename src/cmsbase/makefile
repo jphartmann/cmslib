@@ -8,7 +8,6 @@
 
 LIB:=fplcbase
 ASMOPTS:=rent,
-.SECONDARY:
 
 ASMSRC:=run390 stack390 low390 csl390 stor390 tod390
 # cmspipe
