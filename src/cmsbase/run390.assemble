@@ -105,26 +105,29 @@ _start equ go
  lr 15,7 Get top of stack                                                       
  l 14,=v(cmsmain)                                                               
  basr 14,14                   And do remember to go there                       
- drop ,                                                                         
 * We  come  back  here  when  __go390  took  a  dislike  to the       *         
 * parameters.   Nothing  was  started  and  nothing needs to be       *         
 * restored/returned.   The stack goes away when we exit the SVC       *         
 * level.   Just  go  back to CMS.  Well, that's the theory, but       *         
 * perhaps  we  at  least  need  to  deal  with the stack guard.       *         
 * Certainly, this makes minimal work:                                 *         
- using *,14                                                                     
- entry __exit                                                                   
+                                                                                
  extrn __rstack                                                                 
+__erret equ *                                                                   
+ l    14,=v(__rstack)                                                           
+ basr  14,14 Release stack and fix guard page                                   
+ l  14,12(,13)                                                                  
+ br 14 Terminate command                                                        
+                                                                                
+ drop                                                                           
+ entry __exit                                                                   
+__exit ds 0h                                                                    
+ basr 14,0                                                                      
+ using *,14                                                                     
  l    14,=v(__rstack)                                                           
  drop 14                                                                        
  basr  14,14                                                                    
  cmsret RC=(2)                                                                  
-__exit ds 0h                                                                    
-                                                                                
-__erret equ *                                                                   
- l  14,12(,13)                                                                  
- br 14 Terminate command                                                        
- drop                                                                           
                                                                                 
  print off                                                                      
  nucon                                                                          

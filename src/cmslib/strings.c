@@ -20,10 +20,10 @@ strcasecmp(const char * s1, const char * s2)
 
    while (*s1 && *s2)
    {
-      r=*s1++ - *s2++;
+      r = toupper(0xff & *s1++) - toupper(0xff & *s2++);
       if (r) return r;
    }
-   return *s1 - *s2;
+   return toupper(0xff & *s1) - toupper(0xff & *s2);
 }
 
 int
@@ -33,8 +33,8 @@ strncasecmp(const char * s1, const char * s2, size_t length)
 
    while (0 < length-- && *s1 && *s2)
    {
-      r=*s1++ - *s2++;
+      r = toupper(0xff & *s1++) - toupper(0xff & *s2++);
       if (r) return r;
    }
-   return *s1 - *s2;
+   return toupper(0xff & *s1) - toupper(0xff & *s2);
 }

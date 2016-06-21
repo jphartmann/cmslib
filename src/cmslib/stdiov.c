@@ -72,7 +72,7 @@ fdopen(int fd, const char *mode)
    if (__NFILE <= fd) return NULL;
    return __userFiles[fd];
 }
-
+#if 0
 FILE *
 fopen(const char *path, const char *mode)
 {
@@ -93,6 +93,7 @@ fopen(const char *path, const char *mode)
 
    return __userFiles[fd];
 }
+#endif
 
 int
 _allocbuf(FILE * f, int size)

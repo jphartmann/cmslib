@@ -1,10 +1,9 @@
-# CMS specific low level library routines
+LIB:=fplcmslib
 
-LIB:=fplcmsnt
-
-CFLAGS:=-I.
 CSRC:=${basename ${wildcard *.c}}
+CFLAGS:=-I.
 
 include ../cms390.makefile
 
+${GENDIR}/rusage.s: ../include/sys/resource.h
 ${GENDIR}/csldec.s: csldecode.h

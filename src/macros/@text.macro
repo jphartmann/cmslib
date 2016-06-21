@@ -1,5 +1,0 @@
- macro
- @TEXT
- gblc &fname
-&fname rsect
- mend

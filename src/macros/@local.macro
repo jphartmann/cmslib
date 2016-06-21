@@ -1,5 +1,0 @@
- macro
- @LOCAL &sym
- gblc &local
-&local setc '&sym'
- mend

@@ -23,8 +23,7 @@
 
 # BASE		The  directory that contains this makefile.	If the current
 #				directory	is   deeper,  BASE  must  be	set  accordingly.
-#				Specifically,	 ${BASE}/include	 and	${BASE}/macros  must
-#				exist.
+#				Specifically, ${BASE}/include must exist.
 
 # MACROBASE The directory that contains the VM macro libraries (DMSGPI, etc.)
 
@@ -70,12 +69,6 @@ NOTOK=1
 ${info Please install gas2asm from https://github.com/jphartmann/gas2asm.git}
 endif
 
-# We assume that you have the login information in .netrc
-ifndef VMHOST
-NOTOK=1
-${info Please define the VMHOST environment variable to contain the host name or IP address of your VM system.}
-endif
-
 ifndef NOHLASM
 @HLASM:=${shell which hlasm}
 endif
@@ -97,17 +90,7 @@ EFLAGS:=-fexec-charset=IBM-1047 -Wno-format
 # support -e reliably.	We do this here, but using /bin/echo works well
 # with -e.
 
-@STAGE=${BASE}/../stage
-
-@FTP:=echo site fix 80; echo lcd ${@STAGE}; echo put
-@UPDECK:=(echo bin; ${@FTP} @${LIB}.text ${LIB}.text) \
-	|ftp ${VMHOST}
-@UPASMS:=(${@FTP}  @${LIB}.assemble ${LIB}.assemble) \
-	|ftp ${VMHOST}
-@UPCOPY:=(${@FTP}  @${LIB}.copy ${LIB}.copy) \
-	|ftp ${VMHOST}
-@UPTXTLIB:=(echo bin; ${@FTP}  @${LIB}.txtlib ${LIB}.txtlib) \
-	|ftp ${VMHOST}
+@STAGE=${BASE}/../../cmslib-exec
 
 ifndef MACROBASE
  MACROBASE:=${HOME}/fpl/ebcdic/macros
@@ -117,13 +100,13 @@ ASMOPTS:=${ASMOPTS}term
 ASMFLAGS:= \
  --noprintoptions --macrobase ${MACROBASE} \
  --options ${ASMOPTS} --maxmessage 10 -o ${GENDIR} \
- --macropath .:${BASE}/macros:dmsgpi.maclib:dmsom.maclib:fplgpi.maclib:fplom.maclib
+ --macropath .:${HOME}/macros:dmsgpi.maclib:dmsom.maclib:fplgpi.maclib:fplom.maclib
 
 # Figure out what to do.
 
 # For assemble files
 #	 List of source files
-@ASMN:=${ASMSRC} ${addprefix $G/,${CSRC}}
+@ASMN:=${ASMSRC}
 # What needs to be redone when include files change
 @S:=${addsuffix .s,${addprefix $G/,${CSRC}}}
 #	 For the stacked list
@@ -138,13 +121,16 @@ ifdef @HLASM
 # Assemble locally
 ifdef @TEXT
 build: ${@TEXT}
-build: ${@STAGE}/@${LIB}.text
+build: ${@STAGE}/${LIB}.txtlib
+build: ${@STAGE}/${LIB}.text
 
-${@STAGE}/@${LIB}.txtlib: ${@TEXT} | ${@STAGE}
-	txtlib ${@STAGE}/@${LIB}.text ${@TEXT}
-	${@UPTXTLIB}
+${@STAGE}/${LIB}.text  : ${@TEXT} | ${@STAGE}
+	cat ${@TEXT} >$@
 
-${@TEXT}: ${BASE}/macros/*
+${@STAGE}/${LIB}.txtlib: ${@TEXT} | ${@STAGE}
+	txtlib $@ ${@TEXT}
+
+${@TEXT}: ${HOME}/macros/*
 endif
 # Just create the ASSEMBLE files for upload
 endif
@@ -157,24 +143,17 @@ endif
 # individual files.
 ifdef @ASMA
 #${info Assemble: ${@ASMA}}
-build: ${@STAGE}/@${LIB}.assemble
+build: ${@STAGE}/${LIB}.assemble
 
-${@STAGE}/@${LIB}.assemble: ${@ASMA} | ${@STAGE}
-	cat ${@ASMA} >${@STAGE}/@${LIB}.assemble
-	${@UPASMS}
+${@STAGE}/${LIB}.assemble: ${@ASMA} | ${@STAGE}
+	cat ${@ASMA} >$@
 endif
 
 ifdef COPY
-#@${info Copy: ${COPY}}
-build: ${@STAGE}/@${LIB}.copy
+build: ${@STAGE}/${LIB}.maclib
 
-${@STAGE}/@${LIB}.copy: ${COPY} | ${@STAGE}
-# We want both the prototypes and the member names in uppercase.
-# ^^ to uppercase is no doubt a recent Bash concept.
-	( for n in ${COPY} ; do \
-		fn=$${n%.*}; fnu=$${fn^^}; \
-		echo '*COPY' $${fnu} ; cat $$n; done ) >${@STAGE}/@${LIB}.copy
-	${@UPCOPY}
+${@STAGE}/${LIB}.maclib: ${COPY} | ${@STAGE}
+	maclib $@ ${COPY}
 endif
 
 clean:
