@@ -121,7 +121,7 @@ ifdef @HLASM
 # Assemble locally
 ifdef @TEXT
 build: ${@TEXT}
-build: ${@STAGE}/${LIB}.txtlib
+# build: ${@STAGE}/${LIB}.txtlib
 build: ${@STAGE}/${LIB}.text
 
 ${@STAGE}/${LIB}.text  : ${@TEXT} | ${@STAGE}
@@ -143,14 +143,14 @@ endif
 # individual files.
 ifdef @ASMA
 #${info Assemble: ${@ASMA}}
-build: ${@STAGE}/${LIB}.assemble
+# build: ${@STAGE}/${LIB}.assemble
 
 ${@STAGE}/${LIB}.assemble: ${@ASMA} | ${@STAGE}
 	cat ${@ASMA} >$@
 endif
 
 ifdef COPY
-build: ${@STAGE}/${LIB}.maclib
+# build: ${@STAGE}/${LIB}.maclib
 
 ${@STAGE}/${LIB}.maclib: ${COPY} | ${@STAGE}
 	maclib $@ ${COPY}

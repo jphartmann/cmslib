@@ -30,6 +30,7 @@ extern __subcom __subcmd;
 static struct cmssubcom * subcoms;
 
 /* Forward declarations:                                             */
+static enum cmssubcomreason namesetup(const char * name, char nm[8]);
 /* End of forward declarations.                                      */
 
 /*********************************************************************/
@@ -40,7 +41,6 @@ enum cmssubcomreason
 cmssubcr(const char * name, int flags, cmssubcomcallback cb,
    void * userword)
 {
-   int len;
    char nm[8];
    struct cmssubcom * sb;
    struct scpl pl = { "SUBCOM  ", flag2: 0xe0, };
@@ -49,12 +49,10 @@ cmssubcr(const char * name, int flags, cmssubcomcallback cb,
 
    #define ER(x) return (cmssub_ ## x)
 
-   if (!name) ER(noname);
-   len = strlen(name);
-   if (8 < len) ER(namelong);
+   rv = namesetup(name, nm);
+   if (rv) return rv;
+
    if (!cb) ER(nocallback);
-   memset(nm, ' ', sizeof(nm));
-   memcpy(nm, name, len);
 
    for (sb = subcoms; sb; sb = sb->next)
    {
@@ -105,21 +103,19 @@ cmssubdl(const char * name)
    struct cmssubcom ** psb;
    struct scpl pl = { "SUBCOM  ", };
    int rv;
-   int len;
    char nm[8];
 
-   if (!name) ER(noname);
-   len = strlen(name);
-   if (8 < len) ER(namelong);
+   rv = namesetup(name, nm);
+   if (rv) return rv;
+
    for (psb = &subcoms; (sb = *psb); psb = &sb->next)
    {
-      if (!memcmp(sb->name, name, 8)) break;
+      if (!memcmp(sb->name, nm, 8)) break;
    }
    if (!sb) ER(nonesuch);
    *psb = sb->next;                   /* Unchain                     */
-   memset(nm, ' ', sizeof(nm));
-   memcpy(nm, name, len);
    memcpy(pl.name, sb->name, 8);
+   free(sb);
    rv = __svc204(NULL, pl.verb, 0, NULL);
    switch (rv)
    {
@@ -134,6 +130,22 @@ cmssubdl(const char * name)
    return cmssub_ok;
 }
 
+/*********************************************************************/
+/* Validate and load name.                                           */
+/*********************************************************************/
+
+static enum cmssubcomreason
+namesetup(const char * name, char nm[8])
+{
+   int len;
+
+   if (!name) ER(noname);
+   len = strlen(name);
+   if (8 < len) ER(namelong);
+   memset(nm, ' ', 8);
+   memcpy(nm, name, len);
+   return 0;
+}
 
 /*********************************************************************/
 /* Exit to drive actual callback.                                    */

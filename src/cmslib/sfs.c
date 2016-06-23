@@ -117,6 +117,7 @@ devopen(FILE * f, const char * name, int oflags, const char * mde)
    int fnftlen;
    int rv, rsn;
    struct exsbuff exs;
+   struct exsbuff * pexs;
    int exsl=sizeof(exs);
    int nofile = 0;                    /* assume file exists          */
    int zero = 0;                      /* For SFS plist               */
@@ -237,9 +238,10 @@ devopen(FILE * f, const char * name, int oflags, const char * mde)
       if (90220 == rsn) nofile = 1;
       else
       {
-         char bfr[128];
+         char bfr[256];
 
-         sprintf(bfr, "DMSEXIST reason %d", rsn);
+         sprintf(bfr, "DMSEXIST reason %d file '%.*s'",
+            rsn, fna.fidlen, fna.fid);
          return _seterr(EINVAL, EINVAL, _einv_rsn_bad_dmsexist,
             "CMS error locating file", bfr);
       }
@@ -400,6 +402,10 @@ error:
       if (0) __sayf("FIXME " __FILE__ ".%d", __LINE__);
    }
 
+   pexs = f->accwork = malloc(sizeof(struct exsbuff));
+   if (!f) return ENOMEM;
+   *pexs = exs;
+
    return 0;
 }
 
@@ -481,7 +487,9 @@ devclose(FILE * f)
    int rv, rsn;
    static const char commit[]="COMMIT";
    int clen=strlen(commit);
+   struct exsbuff * xb = f->accwork;
 
+   if (xb) free(xb);
    tocsl(5, "DMSCLOSE", &rv, &rsn, f->token, commit, &clen);
    return rv ? -1 : 0;
 }
@@ -493,7 +501,11 @@ devstat(FILE * f, struct stat * st)
    struct adt * ap;
    static unsigned char zeros[3];
 
-   if (!xb) return (errno = ENOENT), -1;
+   if (!xb)
+   {
+      __WERROR("accwork not there\n");
+      return (errno = ENOENT), -1;
+   }
 
    switch (f->recform)
    {

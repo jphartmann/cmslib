@@ -111,23 +111,28 @@ _start equ go
 * level.   Just  go  back to CMS.  Well, that's the theory, but       *         
 * perhaps  we  at  least  need  to  deal  with the stack guard.       *         
 * Certainly, this makes minimal work:                                 *         
-                                                                                
- extrn __rstack                                                                 
-__erret equ *                                                                   
- l    14,=v(__rstack)                                                           
- basr  14,14 Release stack and fix guard page                                   
- l  14,12(,13)                                                                  
- br 14 Terminate command                                                        
-                                                                                
  drop                                                                           
  entry __exit                                                                   
 __exit ds 0h                                                                    
  basr 14,0                                                                      
  using *,14                                                                     
+ lr 12,2 Save return code                                                       
  l    14,=v(__rstack)                                                           
  drop 14                                                                        
  basr  14,14                                                                    
- cmsret RC=(2)                                                                  
+ cmsret RC=(12)                                                                 
+                                                                                
+ extrn __rstack                                                                 
+__erret equ *                                                                   
+ basr 14,0                                                                      
+ using *,14                                                                     
+ lr 12,2 Save return code                                                       
+ l    14,=v(__rstack)                                                           
+ basr  14,14 Release stack and fix guard page                                   
+ drop 14                                                                        
+ l  14,12(,13)                                                                  
+ lr 15,12                                                                       
+ br 14 Terminate command                                                        
                                                                                 
  print off                                                                      
  nucon                                                                          
