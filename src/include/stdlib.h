@@ -63,9 +63,9 @@ int mbtowc(wchar_t *pwc, const char *s, size_t n);
 int wctomb(char *s, wchar_t wchar);
 size_t mbstowcs(wchar_t *pwcs, const char *s, size_t n);
 size_t wcstombs(char *s, const wchar_t *pwcs, size_t n);
-int abs(int j);
+#define abs(x) (0 > x ? -x : x)
+#define labs(x) (0 > x ? -x : x)
 div_t div(int numer, int denom);
-long int labs(long int j);
 ldiv_t ldiv(long int numer, long int denom);
 int atexit(void (*func)(void));
 char *getenv(const char *name);

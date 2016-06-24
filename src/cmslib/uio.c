@@ -81,6 +81,7 @@ _openfile(FILE * f, const char * name, int oflags, const char * ostr)
    {
       __WERROR("Unable to determine file type for file name '%s'.", name);
       rv = ENOENT;
+      goto bailout;
    }
 
    /* Indicate (on read) that NL has been transmitted.               */
@@ -94,6 +95,7 @@ _openfile(FILE * f, const char * name, int oflags, const char * ostr)
    }
    if (rv)
    {
+bailout:
       cleanfile(f);
       errno = rv;
       return -1;

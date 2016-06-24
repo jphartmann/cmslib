@@ -19,6 +19,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <alloca.h>
 
 #include <cmsbase.h>
 #include <csl.h>
@@ -226,6 +227,8 @@ devopen(FILE * f, const char * name, int oflags, const char * mde)
 /*********************************************************************/
 /* Now  look  for the file.  If user wants caseless, he will have to */
 /* do the uppercasing.  We in turn make no noise.                    */
+/*                                                                   */
+/* Aw, c'm on.  If it is read, look for uppercase.                   */
 /*********************************************************************/
 
    exs.exstype = 0;                   /* Assume not old              */
@@ -233,6 +236,17 @@ devopen(FILE * f, const char * name, int oflags, const char * mde)
    nofile = 0;
    tocsl(8, "DMSEXIST", &rv, &rsn, fna.fid, &fna.fidlen,
       &exs, &exsl, noc, &nocl);
+   if (rv && 90220 == rsn && (O_RDONLY & oflags) && islower(0xff & fna.fid[0]))
+   {
+      int i;
+
+      for (i = 0; fna.fidlen > i; i++)
+      {
+         fna.fid[i] = toupper(0xff & fna.fid[i]);
+      }
+      tocsl(8, "DMSEXIST", &rv, &rsn, fna.fid, &fna.fidlen,
+         &exs, &exsl, noc, &nocl);
+   }
    if (rv)
    {
       if (90220 == rsn) nofile = 1;
