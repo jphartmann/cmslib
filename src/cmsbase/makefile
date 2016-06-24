@@ -9,11 +9,11 @@
 LIB:=fplcbase
 ASMOPTS:=rent,
 
-ASMSRC:=run390 stack390 low390 csl390 stor390 tod390
+ASMSRC:=run390 stack390 low390 csl390 stor390 tod390 subc390
 # cmspipe
 COPY:=run390.copy
 
-CSRC:=go390 const
+CSRC:=go390 const onosj
 
 include ../cms390.makefile
 

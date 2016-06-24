@@ -56,14 +56,6 @@
 /* Forward declarations:                                             */
 /* End of forward declarations.                                      */
 
-int
-__onOSj(void)
-{
-   static const struct nucon * pnuc;
-
-   return 'O' == pnuc->systemid[0];
-}
-
 
 FILE *
 fdopen(int fd, const char *mode)

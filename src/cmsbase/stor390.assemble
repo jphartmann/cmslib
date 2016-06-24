@@ -67,7 +67,7 @@ __initcg ds 0d
    tm gsflag1,NOENVIRONMENT                                                     
    IF      ZERO                                                                 
      la 1,stackpl                                                               
-     CMSCALL CALLTYP=EPLIST,COPY=NO,EPLIST=stackepl                             
+     CMSCALL CALLTYP=EPLIST,EPLIST=stackepl                                     
      lr 0,15  Negative, perhaps                                                 
    fi                                                                           
  fi                                                                             

@@ -84,7 +84,7 @@ CFLAGS+=-nostdinc -I. -I${BASE}/include
 CFLAGS+=-D__ZVM__ -D__CMS__ -U__gnu_linux__
 CFLAGS+=-m31 -march=g5 -fno-use-linker-plugin
 CFLAGS+=-fverbose-asm -g -Wall -Werror -Wno-pointer-sign
-EFLAGS:=-fexec-charset=IBM-1047 -Wno-format
+EFLAGS:=-fexec-charset=IBM-1047 -Wno-format -O
 
 # The  built-in  shell command in sh (which is often ash/dash) does not
 # support -e reliably.	We do this here, but using /bin/echo works well

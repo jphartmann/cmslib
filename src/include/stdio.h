@@ -197,7 +197,7 @@ int fseek(FILE *stream, long int offset, int whence);
 long int ftell(FILE *stream);
 int fsetpos(FILE *stream, const fpos_t *pos);
 int fgetpos(FILE *stream, fpos_t *pos);
-void rewind(FILE *stream);
+#define revoid rewind(FILE *stream);
 void clearerr(FILE *stream);
 #define perror(s) fprintf(stderr, "%s: %m\n", s)
 int setvbuf(FILE *stream, char *buf, int mode, size_t size);

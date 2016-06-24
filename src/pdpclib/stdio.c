@@ -2735,20 +2735,6 @@ __PDPCLIB_API__ char *fgets(char *s, int n, FILE *stream)
 }
 #endif
 
-__PDPCLIB_API__ int ungetc(int c, FILE *stream)
-{
-    if ((stream->ungetCh != -1) || (c == EOF))
-    {
-        return (EOF);
-    }
-    stream->ungetCh = (unsigned char)c;
-#if !defined(__ZVM__)
-    stream->quickText = 0;
-    stream->quickBin = 0;
-#endif
-    return ((unsigned char)c);
-}
-
 #if !defined(__ZVM__)
 __PDPCLIB_API__ int fgetc(FILE *stream)
 {
@@ -2887,31 +2873,6 @@ __PDPCLIB_API__ long int ftell(FILE *stream)
     return (stream->bufStartR + (stream->upto - stream->fbuf));
 }
 #endif
-
-__PDPCLIB_API__ int fsetpos(FILE *stream, const fpos_t *pos)
-{
-    fseek(stream, *pos, SEEK_SET);
-    return (0);
-}
-
-__PDPCLIB_API__ int fgetpos(FILE *stream, fpos_t *pos)
-{
-    *pos = ftell(stream);
-    return (0);
-}
-
-__PDPCLIB_API__ void rewind(FILE *stream)
-{
-    fseek(stream, 0L, SEEK_SET);
-    return;
-}
-
-__PDPCLIB_API__ void clearerr(FILE *stream)
-{
-    stream->errorInd = 0;
-    stream->eofInd = 0;
-    return;
-}
 
 /*
 NULL + F = allocate, setup
@@ -3164,18 +3125,6 @@ __PDPCLIB_API__ char *gets(char *s)
     return (ret);
 }
 #endif
-
-__PDPCLIB_API__ int puts(const char *s)
-{
-    int ret;
-
-    ret = fputs(s, stdout);
-    if (ret == EOF)
-    {
-        return (ret);
-    }
-    return (putc('\n', stdout));
-}
 
 /* The following functions are implemented as macros */
 
@@ -4412,8 +4361,8 @@ static void fdclr(char *ddname)
    Following code issues a FILEDEF for CMS
 */
 
-#if defined(__ZVM__)
-#elif defined(__CMS__)
+#if 0 && defined(__ZVM__)
+#elif 0 && defined(__CMS__)
 static void filedef(char *fdddname, char *fnm, int mymode)
 {
     char s202parm [800];

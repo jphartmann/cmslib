@@ -58,11 +58,11 @@ static const char * getenvstrs =
 int __fpldbg;
 
 /* Forward declarations:                                             */
-int ouroption(char * t);
 static int scanopen(int fd, const char * name, const char * mode);
 static int __cntargs(const char * s, int len, int * tc, int * bc, int * bsize, int debug);
 static int __doargv(const char * s, int len, char ** av, char * t, int bsize, int debug);
 static void readenv(FILE * p, void * vp, const int lines);
+static int ouroption(char * t);
 /* End of forward declarations.                                      */
 
 /*********************************************************************/
@@ -201,7 +201,7 @@ readenv(FILE * p, void * vp, const int lines)
 /* See if option is one of ours.                                     */
 /*********************************************************************/
 
-int
+static int
 ouroption(char * t)
 {
    if (!strcmp(t, "--fpl-csl-verbose"))
