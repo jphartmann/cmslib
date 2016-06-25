@@ -18,5 +18,7 @@ all: tar
 
 tar: ${TAR}
 
-${TAR}: include/*.h include/sys/*.h include/netinet/*.h samples/fplgcc.makefile
-	tar -cf ${TAR} include -C samples fplgcc.makefile
+SAMPS:=fplgcc.makefile minimal/minimal.c minimal/makefile
+SP:=${addprefix samples/,${SAMPS}}
+${TAR}: include/*.h include/sys/*.h include/netinet/*.h ${SP}
+	tar -cf ${TAR} include -C samples ${SAMPS} include
