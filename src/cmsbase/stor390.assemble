@@ -39,6 +39,7 @@ __initcg ds 0d
  ltr 4,4  Is it there?                                                          
  if      ZERO                                                                   
    getgbl  usersave=6 And load usersave into R6                                 
+*  This leaves a using for R$ on the global                                     
  fi                                                                             
  clc cgeye,=c'g390'                                                             
  ber 14 Seems OK  Return R4 too.                                                
@@ -112,6 +113,12 @@ gvarge equ *
 * first thread gets the full name.  The next 9,999 get a number       *         
 * and the ten thousandth will cause things to blow sky high.          *         
 *                                                                     *         
+* R4     Global area from initcg                                      *         
+* R6     Usersave                                                     *         
+*                                                                     *         
+* Stack initialisation will store the name in the thread global       *         
+* area so no need to fiddle with it here.                             *         
+*                                                                     *         
 ***********************************************************************         
                                                                                 
  entry __initsp                                                                 
@@ -139,6 +146,40 @@ __initsp ds 0h  Set subpool to use and default stack allocation
  lr 15,2 Set rc here too                                                        
  br 14                                                                          
                                                                                 
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Release  a  subpool.   While  modules  don't bother, pipeline       *         
+* stages must lest we run out of storage in, e.g., a server.          *         
+*                                                                     *         
+* R4 is global.                                                       *         
+* R5 is thread global (the area we are about to release).                       
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ entry __relesp                                                                 
+__relesp ds 0h                                                                  
+ basr 11,0                                                                      
+ using *,11                                                                     
+ using cmsthreadglobal,5                                                        
+ clc ctgeye,=cl8'&threadchkw.'                                                  
+ jne badckw                                                                     
+ la 3,ctgsubpool                                                                
+ SUBPOOL DELETE,NAME=(3),TYPE=SHARED,MF=(E,cgplist)                             
+ ltr 2,15 As function result                                                    
+ bzr 14 Return if OK                                                            
+                                                                                
+ APPLMSG TEXT='Unable to delete subpool &&1.  RC=&&2,',                +        
+               SUB=(CHARA,((3),8),DEC,(2))                                      
+ lr 15,2 Set rc here too                                                        
+ br 14                                                                          
+                                                                                
+badckw ds 0h                                                                    
+ la 2,ctgeye                                                                    
+ la 3,=cl8'&threadchkw.'                                                        
+ APPLMSG TEXT='Checkword on thread storage is ''&&2''.  Want ''&&3''.',+        
+               SUB=(CHARA,((2),8),CHARA,((3),8))                                
+ br 14                                                                          
                                                                                 
  print off                                                                      
  nucon                                                                          

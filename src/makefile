@@ -3,7 +3,7 @@
 
 TAR:=../../cmslib-exec/fplgcc.tar
 
-BELOW:=cmsbase cmslib glibc pdpclib
+BELOW:=cmsbase cmslib glibc pdpclib pipeline
 
 default:
 	@echo Doing nothing.  Specify clean or all.

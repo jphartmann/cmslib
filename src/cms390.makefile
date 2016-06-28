@@ -120,6 +120,7 @@ ifdef @HLASM
 #${info Using local assembler: ${@HLASM}}
 # Assemble locally
 ifdef @TEXT
+build: | $G
 build: ${@TEXT}
 # build: ${@STAGE}/${LIB}.txtlib
 build: ${@STAGE}/${LIB}.text
@@ -155,6 +156,9 @@ ifdef COPY
 ${@STAGE}/${LIB}.maclib: ${COPY} | ${@STAGE}
 	maclib $@ ${COPY}
 endif
+
+nothing:
+	@echo Specify files to assemble/compile.
 
 clean:
 	rm -f core $G/*

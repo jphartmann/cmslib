@@ -1,0 +1,4 @@
+name=hello1   code=fplhello  first=yes
+name=hello2   code=fplhello  args=yes
+name=hello3   code=fplhello  streams=1
+name=piphello code=fplhello

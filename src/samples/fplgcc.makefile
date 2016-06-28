@@ -33,7 +33,7 @@
 # It	may  be convenient to import these variables from the environment
 # instead of specifying them in all makefiles
 
-.SUFFIXES: .text .assemble .listing .c .s
+.SUFFIXES: .text .assemble .listing .c .s .eptable
 
 # Intermediary files are stored in this directory
 ifndef GENDIR
@@ -82,9 +82,22 @@ endif
 
 all: ${ASMS}
 	(cd $G && cat $A >@${LIB}.assemble)
+P:=echo put @${LIB}.assemble ${LIB}.assemble;
+
+ifdef EPTABLE
+E:=${EPTABLE}.assemble
+all: $G/$E
+P+=echo put $E;
+endif
+
+nothing:
+	@echo Doing nothing.
+
+clean:
+	rm -f core $G/*
 
 up: all
-	/bin/echo -e "site fix 80\nlcd $G\n put @${LIB}.assemble ${LIB}.assemble\n quit" \
+	(echo site fix 80; echo lcd $G; $P echo quit) \
 	|ftp ${VMHOST}
 
 # Patterns and recipes
@@ -100,3 +113,6 @@ $G/%.assemble: $G/%.s
 
 $G:
 	mkdir -p $G
+
+$G/%.assemble: %.eptable
+	rexx makefp.rexx $< $@

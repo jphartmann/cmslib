@@ -64,10 +64,11 @@ extern int fplgccsv(struct pipeanchor * panc, int service, union fplparm p1, str
 /* DSPPO EQU 4*4 outp                                                */
 #define pipoutput(anc, rec) fplgccsv(anc, 4, (union fplparm) 0, rec)
 /* DSPSH EQU 5*4 short                                               */
-#define pipshort(anc)       fplgccsv(anc, 4, (union fplparm) 0, NULL)
+#define pipshort(anc)       fplgccsv(anc, 5, (union fplparm) 0, NULL)
 /* DSPCM EQU 6*4 cmd                                                 */
-#define pipcmd(anc, cmd)    fplgccsv(anc, 5, (union fplparm) 0, cmd)
-/* REXX EQU 7*4  rexx
+#define pipcmd(anc, cmd)    fplgccsv(anc, 6, (union fplparm) 0, cmd)
+/* REXX EQU 7*4  rexx                                                */
+#define piprexx(anc, cmd)    fplgccsv(anc, 7, (union fplparm) 0, cmd)
 /* MSGEP EQU 8*4 msg                                                 */
 /* CVTTK EQU 9*4                                                     */
 /* CVTNP EQU 10*4                                                    */
