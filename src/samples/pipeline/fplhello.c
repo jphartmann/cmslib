@@ -35,11 +35,11 @@ fplhello(struct pipeanchor * pa, struct pipeparms * args)
    if (args->string.length)
    {
       rv |= pipoutput(pa, &args->string);
-      wl = pipword(pa, args);
+      wl = pipword(pa);
       if (args->word.length != wl) return 17;
       rv |= pipoutput(pa, &args->word);
       args->token = token;
-      piputkn(pa, args);
+      piputkn(pa);
       pf.alen = wl;
       pf.upper = token;
       fplgccpf(pa, 2, &pf);

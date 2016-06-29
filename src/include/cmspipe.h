@@ -21,7 +21,11 @@ struct piperecord                     /* #record macro               */
 
 struct pipeparms          /* Regs 0 through 5 in assembler interface */
 {
-   int integer;
+   union
+   {
+      char * module;
+      int integer;
+   };
    union
    {
       char * token;
@@ -31,71 +35,126 @@ struct pipeparms          /* Regs 0 through 5 in assembler interface */
    struct piperecord word;
 };
 
+struct pipebuffer                     /* pipbfr                      */
+{
+   int dwds;                       /* Opaque (Doublewords allocated) */
+   char * base;                       /* Where it is                 */
+   int size;                          /* Current size in bytes       */
+   char * next;                       /* Next available position     */
+};
+
 typedef int (* fplstage)(struct pipeanchor * panc, struct pipeparms * args);
 
-union fplparm
-{
-   int number;                        /* If a number                 */
-   struct pipeparms * parms;
-   struct piperecord * prec;
-};
 /* Printf                                                            */
 extern int fplgccpf(struct pipeanchor * panc, int subs, void * slist);
 
-/* The  second  parameter is the PSTV index for the service routine. */
-/* For  calls to fplcvt, the number is used blindly as an index.  If */
-/* you  code  additional macros below, you better be sure the called */
-/* routine  uses  only  registers  0..5; coz those are the only ones */
-/* that will be passed.                                              */
+extern int fplgccvt(struct pipeanchor * panc, int service);
+/* Operations on a record                                            */
+extern int fplgccrc(struct pipeanchor * panc, int service, struct piperecord * rec);
+enum __record_function
+{
+   __dsp_locate,
+   __dsp_input,
+   __dsp_output,
+   __dsp_command,
+   __dsp_rexx,
+};
+#define piplocate(anc, rec) fplgccrc(anc, __dsp_locate, rec)
+#define pipinput(anc, rec)  fplgccrc(anc, __dsp_input, rec)
+#define pipoutput(anc, rec) fplgccrc(anc, __dsp_output, rec)
+#define pipcmd(anc, cmd)    fplgccrc(anc, __dsp_output, cmd)
+#define piprexx(anc, cmd)    fplgccrc(anc, __dsp_rexx, cmd)
 
-/* The  actual code to call the service routine for fplgccsv must be */
-/* added  to  FPLGCC;  you cannot just invent a service by adding it */
-/* here.                                                             */
+/* Dispatcher functions that take nothing, an integer or, a pair     */
+extern int fplgccdi(struct pipeanchor * panc, int service, int i, int j);
 
-extern int fplgccvt(struct pipeanchor * panc, int service, struct pipeparms * parm);
-extern int fplgccsv(struct pipeanchor * panc, int service, union fplparm p1, struct piperecord * rec);
+enum __integer_function
+{
+   __dsp_parm,
+   __dsp_short,
+   __dsp_commit,
+   __dsp_select,
+};
+#define pipparm(anc)                      fplgccdi(anc, __dsp_parm, 0, 0)
+#define pipshort(anc)                     fplgccdi(anc, __dsp_short, 0, 0)
+#define pipcommit(anc, n)                 fplgccdi(anc, __dsp_commit, n, 0)
+#define pipselect(anc, parm, dir, stream) fplgccdi(anc, __dsp_select, dir, stream)
+   #define SELECTINPUTSIDE -1
+   #define SELECTOUTPUTSIDE -2
+   #define SELECTBOTHSIDES -3
+   #define SELECTANYINPUT -4
+
+/* Operate on hidden buffer                                          */
+extern int fplgccbf(struct pipeanchor * panc, int service, void * data, int length);
+enum __buffer_function
+{
+   __pipbfr_reset,                    /* Reset buffer to be empty    */
+   __pipbfr_extend,          /* Ensure at least size bytes available */
+   __pipbfr_load,                     /* Load data                   */
+   __pipbfr_append,                   /* Append data                 */
+   __pipbfr_pad,                      /* Pad bytes                   */
+   __pipbfr_setup,            /* Set parm 4 and 5 to buffer contents */
+   __pipbfr_write,      /* Write buffer contents to output and reset */
+};
+
+#define pipbfrreset(anc)  fplgccbf(anc, __pipbfr_reset, 0, 0)
+#define pipbfrextend(anc, size)  fplgccbf(anc, __pipbfr_extend, 0, size)
+#define pipbfrload(anc, data, size)  fplgccbf(anc, __pipbfr_load, data, size)
+#define pipbfrappend(anc, data, size)  fplgccbf(anc, __pipbfr_append, data, size)
+#define pipbfrpad(anc, pad, size)  fplgccbf(anc, __pipbfr_pad, (int *) -pad, size)
+#define pipbfrsetup(anc)  fplgccbf(anc, __pipbfr_setup, 0, 0)
+#define pipbfrwrite(anc)  fplgccbf(anc, __pipbfr_write, 0, 0)
 
 /* DSPPA EQU 0*4 parm                                                */
 /* DSPSL EQU 1*4 sel                                                 */
+/* When R0 is negative, R1 is the stream number of stream identifier */
+/* of  the stream to select; otherwise R0 is the stream to select on */
+/* both sides.                                                       */
 /* DSPLO EQU 2*4 locat                                               */
-#define piplocate(anc, rec) fplgccsv(anc, 2, (union fplparm) 0, rec)
 /* DSPPI EQU 3*4 input                                               */
-#define pipinput(anc, rec)  fplgccsv(anc, 3, (union fplparm) 0, rec)
 /* DSPPO EQU 4*4 outp                                                */
-#define pipoutput(anc, rec) fplgccsv(anc, 4, (union fplparm) 0, rec)
 /* DSPSH EQU 5*4 short                                               */
-#define pipshort(anc)       fplgccsv(anc, 5, (union fplparm) 0, NULL)
 /* DSPCM EQU 6*4 cmd                                                 */
-#define pipcmd(anc, cmd)    fplgccsv(anc, 6, (union fplparm) 0, cmd)
 /* REXX EQU 7*4  rexx                                                */
-#define piprexx(anc, cmd)    fplgccsv(anc, 7, (union fplparm) 0, cmd)
 /* MSGEP EQU 8*4 msg                                                 */
+#define piperm(anc)    fplgccvt(anc, 8, (union fplparm) prm, 0)
 /* CVTTK EQU 9*4                                                     */
+#define piptstkw(anc) fplgccvt(anc, 09)
 /* CVTNP EQU 10*4                                                    */
+#define pipnupl(anc) fplgccvt(anc, 10)
 /* CVTGW EQU 11*4                                                    */
-#define pipword(anc, str) fplgccvt(anc, 11, str)
+#define pipword(anc) fplgccvt(anc, 11)
 /* CVTGD EQU 12*4                                                    */
+#define pipdwrd(anc) fplgccvt(anc, 12)
 /* CVTST EQU 13*4                                                    */
-#define piputkn(anc, str) fplgccvt(anc, 13, str)
+#define piputkn(anc) fplgccvt(anc, 13)
 /* CVTMT EQU 14*4                                                    */
-#define pipmtkn(anc, str) fplgccvt(anc, 14, str)
+#define pipmtkn(anc) fplgccvt(anc, 14)
 /* CVTSD EQU 15*4                                                    */
-#define pipsdel(anc, str) fplgccvt(anc, 15, str)
+#define pipsdel(anc) fplgccvt(anc, 15)
 /* CVTHW EQU 16*4                                                    */
+#define pipxwrd(anc) fplgccvt(anc, 16)
 /* CVTXC EQU 17*4                                                    */
+#define pipxchr(anc) fplgccvt(anc, 17)
 /* CVTXR EQU 18*4                                                    */
+#define pipxrng(anc) fplgccvt(anc, 18)
 /* CVTBX EQU 19*4                                                    */
+#define pipbhex(anc) fplgccvt(anc, 19)
 /* CVTSB EQU 20*4                                                    */
-#define pipstrlb(anc, str) fplgccvt(anc, 20, str)
+#define pipstrlb(anc) fplgccvt(anc, 20)
 /* CVTDR EQU 21*4                                                    */
-#define pipdrang(anc, str) fplgccvt(anc, 21, str)
+#define pipdrang(anc) fplgccvt(anc, 21)
 /* CVTDW EQU 22*4                                                    */
-#define pipdecwd(anc, str) fplgccvt(anc, 22, str)
+#define pipdecwd(anc) fplgccvt(anc, 22)
 /* CVTCV EQU 23*4                                                    */
+#define pipckvc(anc) fplgccvt(anc, 23)
 /* CVTTS EQU 24*4                                                    */
+#define piptstar(anc) fplgccvt(anc, 24)
 /* CVTSX EQU 25*4                                                    */
-/* BUFXD EQU 26*4                                                    */
+#define pipsxtab(anc) fplgccvt(anc, 25)
+/* BUFXD EQU 26*4  extend buffer without message                     */
 /* CVTGM EQU 27*4                                                    */
+#define pipgendm(anc) fplgccvt(anc, 27)
 /* DSPSN EQU 28*4                                                    */
 /* DSPX EQU 29*4                                                     */
 /* BUFAP EQU 30*4                                                    */
@@ -104,7 +163,7 @@ extern int fplgccsv(struct pipeanchor * panc, int service, union fplparm p1, str
 /* DSPWE EQU 33*4                                                    */
 /* XLATU EQU 34*4                                                    */
 /* CVTTB EQU 35*4                                                    */
-#define pipstrtb(anc, str) fplgccvt(anc, 35, str)
+#define pipstrtb(anc) fplgccvt(anc, 35)
 /* ACTTC EQU 37*4                                                    */
 /* ACTHV EQU 40*4                                                    */
 /* ACTN0 EQU 41*4                                                    */
@@ -121,8 +180,8 @@ extern int fplgccsv(struct pipeanchor * panc, int service, union fplparm p1, str
 /* ACTX EQU 52*4                                                     */
 /* BUFXM EQU 53*4                                                    */
 /* FNDBS EQU 54*4                                                    */
-/* CVTFS EQU 55*4                                                    */
-/* CVTSF EQU 56*4                                                    */
+/* CVTFS EQU 55*4 hex float to string                                */
+/* CVTSF EQU 56*4 string to hex float                                */
 /* XLARX EQU 57*4                                                    */
 /* $$$PI EQU 58*4                                                    */
 /* ACTCS EQU 59*4                                                    */
@@ -134,7 +193,6 @@ extern int fplgccsv(struct pipeanchor * panc, int service, union fplparm p1, str
 /* DEFGA EQU 66*4                                                    */
 /* DELPC EQU 67*4                                                    */
 /* DSPCT EQU 68*4                                                    */
-#define pipcommt(anc, n)    fplgccsv(anc, 68, (union fplparm) n, NULL)
 /* DSPSA EQU 69*4                                                    */
 
 #endif

@@ -1,4 +1,4 @@
-gcc      TITLE 'Interface code for cross compiled C.                   +        
+GCC      TITLE 'Interface code for cross compiled C.                   +        
                            Copyright John P. Hartmann 2016.'                    
                                                        EJECT                    
 ***********************************************************************         
@@ -11,25 +11,25 @@ gcc      TITLE 'Interface code for cross compiled C.                   +
 *                                                                     *         
 ***********************************************************************         
                                                      SPACE 2                    
- COPY    PGMID ,                                                                
-                                                                                
+ COPY    PGMID                ,                                                 
 &PGMID.GCC MODBEG FREETYPE=NONE                                                 
  DMSPDEFS VECTOR=R9,VECTOR2=YES                                         00190000
-                                                                                
-workarea dsect , Coordinate this with code in makefp.rexx                       
-worksave ds 18f Save area                                                       
-sar9 equ worksave+20+4*9,4                                                      
+WORKAREA DSECT ,              Coordinate this with code in             +        
+                              makefp.rexx                                       
+WORKSAVE DS    18F            Save area                                         
+SAR9     EQU   WORKSAVE+20+4*9,4                                                
 GBLPTRS  DS    2F                                                               
  FLAGDEF DIDCOMMIT                                                              
 BUF1     PIPBFR 0                                                               
 TOKEN    DS    D                                                                
-PARMS    Ds    6F                                                               
-                                                                                
- using workarea,r10                                                             
-                                                                                
+PARMS    DS    6F                                                               
+PARM0    EQU   PARMS,4                                                          
+PARM1    EQU   PARMS+4,4                                                        
+PARM4    EQU   PARMS+4*4,4                                                      
+ USING   WORKAREA,R10                                                           
 &MODULE.IN PROC SAREA=NO                                                        
  LA      R1,TOKEN                                                       00510000
- STM     R1,R3,PARMS+4                                                  00520000
+ STM     R1,R5,PARM1                                                    00520000
  ZIP     R4                   No known environment                      00540000
  L       14,=V(__INITCG)      Initialise GCC environment if not        +00550000
                               already done                              00560000
@@ -47,7 +47,7 @@ PARMS    Ds    6F
      STM       R4,R5,GBLPTRS                                                    
      LR        R15,R1         Put stack pointer in place                        
      LA        R3,PARMS       The args record                                   
-     Lr        R2,10                                                            
+     LR        R2,10                                                            
      L         R1,20(,R10)    C code                                            
      BASR      R14,R1         Go to C code                                      
      LR        8,2                                                              
@@ -60,7 +60,7 @@ PARMS    Ds    6F
  BASR    R14,R14                                                        00740000
  LR      R15,R8               Set Return code                           00750000
  PEXIT   RC=(R15)                                                               
- procend                                                                        
+ PROCEND ,                                                                      
                                                        EJECT                    
 ***********************************************************************         
 *                                                                     *         
@@ -69,37 +69,36 @@ PARMS    Ds    6F
 ***********************************************************************         
                                                      SPACE 2                    
          MACRO ,                                                        00920000
-         #ENTER &EP,&stack                                              00930000
-         gblc epix                                                              
-&epix setc '&sysndx'                                                            
-         GBLC  &MODULE,&pgmid                                           00940000
+         #ENTER &EP,&STACK                                                      
+         GBLC  EPIX                                                             
+&EPIX    SETC  '&SYSNDX'                                                        
+         GBLC  &MODULE,&PGMID                                                   
          ENTRY &MODULE.&EP                                              00950000
 &MODULE.&EP DS  0D                                                      00960000
-         GBLA  &PCURR                                                   01130000
-&ad seta 0                                                                      
-         aif (k'&stack eq 0).stack                                              
-         GBLC  &(###EPV#SAREL#&stack)                                           
-&ad seta &(###EPV#SAREL#&stack)                                                 
- aif (&ad gt 0).stack                                                           
- mnote 12,'Cannot determine work area for &snm.'                                
-.stack anop                                                                     
- lhi 0,&ad                                                                      
- jas 1,enter                                                                    
- basr 12,0                                                                      
- using *,12                                                                     
+&AD      SETA  0                                                                
+         AIF   (K'&STACK EQ 0).STACK ')                                         
+         GBLC  &(###EPV#SAREL#&STACK)                                           
+&AD      SETA  &(###EPV#SAREL#&STACK)                                           
+         AIF   (&AD GT 0).STACK                                                 
+         MNOTE 12,'Cannot determine work area for &SNM.'                        
+.STACK   ANOP  ,                                                                
+         LHI   0,&AD                                                            
+         JAS   1,ENTER                                                          
+         BASR  12,0                                                             
+         USING *,12                                                             
          MEND  ,                                                        01180000
                                                      SPACE 2            01190000
          MACRO ,                                                        01200000
          #EXIT ,                                                        01210000
-         gblc epix                                                              
-exit&epix equ *                                                                 
+         GBLC  EPIX                                                             
+EXIT&EPIX EQU  *                                                                
          LR    R2,R15         Set return code                           01230000
          LM    R4,R5,GBLPTRS  Get these                                 01240000
          L     R14,=V(__SSTACK) Restore my stack                        01250000
          BASR  R14,R14                                                  01260000
          LM    R6,R15,24(R11) Restore registers                         01270000
          BR    R14            Stay away from epilogue                   01280000
-         drop 12                                                                
+         DROP  12                                                               
          MEND  ,                                                        01290000
                                                        EJECT                    
 ***********************************************************************         
@@ -108,28 +107,27 @@ exit&epix equ *
 *                                                                     *         
 ***********************************************************************         
                                                      SPACE 2                    
- pdata                                                                          
-enter ds 0d                                                                     
-         STM   R6,R15,24(R15)                                           00990000
-         LR    R11,R15        Save stack pointer                        01000000
-         LR    R10,R2         Save pipe handle                          01010000
-         LR    R6,R4          Get these out of the way                  01020000
-         LR    R7,R5                                                    01030000
-         lr 8,1 Get return out of the way                                       
-         LM    R4,R5,GBLPTRS  Get these                                 01040000
-         LR    R13,R11                                                  01120000
-         AHI   R13,-18*4 Composite length                               01140000
-         sr 13,0 Additional stuff                                               
-         BASR  R15,0          Get a base                                01050000
-         USING *,R15                                                    01060000
-         L     R14,=V(__CSTACK) Take my stack out                       01070000
-         DROP  R15                                                      01080000
-         BASR  R14,R14                                                  01090000
-         L     R9,sar9                                                  01100000
-         LA    R1,18*4(,R13)  Stack space                               01150000
-         st 1,8(13) Set HLL pointer too                                         
- br 8                                                                           
-                                                                                
+ PDATA   ,                                                                      
+ENTER    DS    0D                                                               
+ STM     R6,R15,24(R15)                                                         
+ LR      R11,R15              Save stack pointer                                
+ LR      R10,R2               Save pipe handle                                  
+ LR      R6,R4                Get these out of the way                          
+ LR      R7,R5                                                                  
+ LR      8,1                  Get return out of the way                         
+ LM      R4,R5,GBLPTRS        Get these                                         
+ LR      R13,R11                                                                
+ AHI     R13,-18*4            Composite length                                  
+ SR      13,0                 Additional stuff                                  
+ BASR    R15,0                Get a base                                        
+ USING   *,R15                                                                  
+ L       R14,=V(__CSTACK)     Take my stack out                                 
+ DROP    R15                                                                    
+ BASR    R14,R14                                                                
+ L       R9,SAR9                                                                
+ LA      R1,18*4(,R13)        Stack space                                       
+ ST      1,8(13)              Set HLL pointer too                               
+ BR      8                                                                      
                                                        EJECT            01300000
 *********************************************************************** 01310000
 *                                                                     * 01320000
@@ -142,16 +140,16 @@ enter ds 0d
  SLL     R3,2                                                           01390000
  LA      R3,4(R3,R1)          Address last item                         01400000
  OI      0(R3),X'80'                                                    01410000
- pipcall dbgpr                                                                  
- org *-2                                                                        
- chi 15,-1                                                                      
+ PIPCALL DBGPR                                                                  
+         ORG   *-2            Overlay BASR                                      
+ CHI     15,-1                                                                  
  IF      EQUAL                                                                  
    APPLMSG TEXT='PRINTF routine not available in this level of CMS/TSO +        
                pipelines.'                                                      
-   lhi 15,-3                                                                    
- else                                                                           
- basr 14,15                                                                     
- fi                                                                             
+   LHI   15,-3                                                                  
+ ELSE    ,                                                                      
+   BASR  14,15                                                                  
+ FI      ,                                                                      
  #EXIT   ,                                                              01430000
                                                        EJECT            01460000
 *********************************************************************** 01470000
@@ -163,31 +161,36 @@ enter ds 0d
  #ENTER  VT                                                             01610000
  SLL     R3,2                 By four                                   01550000
  L       R15,0(R3,R9)         Get service entry                         01560000
- LM      R0,R5,0(R6)          Get register set                          01570000
- BASR    R14,R15              Go to conversion routine                  01580000
- STM     R0,R5,0(R6)          Set register set                          01590000
+ CHI     15,-1                                                                  
+ IF      EQUAL                                                                  
+   APPLMSG TEXT='Usupported conversion function #&&1.',SUB=(DEC,(3))            
+ ELSE    ,                                                                      
+   LM    R0,R5,PARMS          Get register set                                  
+   BASR  R14,R15              Go to conversion routine                          
+   STM   R0,R5,PARMS          Set register set                                  
+ FI      ,                                                                      
  #EXIT   ,                                                              01600000
                                                        EJECT            01630000
 *********************************************************************** 01640000
 *                                                                     * 01650000
-* Call other functions                                                * 01660000
+* Dispatcher functions                                                * 01660000
 *                                                                     * 01670000
 *********************************************************************** 01680000
                                                      SPACE 2            01690000
          MACRO ,                                                        01710000
          #LREC ,                                                        01720000
-         L     R0,4(,R7)                                                01730000
-         L     R1,0(,R7)                                                01740000
+         L     R0,4(,R6)                                                01730000
+         L     R1,0(,R6)                                                01740000
          MEND  ,                                                        01750000
                                                      SPACE 1            01760000
          MACRO ,                                                        01770000
          #STREC ,                                                       01780000
-         ST    R0,4(,R7)                                                01790000
-         ST    R1,0(,R7)                                                01800000
+         ST    R0,4(,R6)                                                01790000
+         ST    R1,0(,R6)                                                01800000
          MEND  ,                                                        01810000
                                                      SPACE 1            01820000
          MACRO ,                                                        01830000
-         #TCOMM &xit                                                    01840000
+         #TCOMM &XIT                                                            
          FLAGTM DIDCOMMIT                                               01850000
          IF    ZERO                                                     01860000
            PIPCOMMT 0                                                   01870000
@@ -196,38 +199,100 @@ enter ds 0d
            FLAGON DIDCOMMIT                                             01880000
          FI    ,                                                        01890000
          MEND  ,                                                        01900000
-                                                     SPACE 1            01910000
- #ENTER  SV                                                             02230000
- basr 12,0                                                                      
- using *,12                                                                     
- CASBEG  TYPE=VECTORED,REG=R3,MIN=0,MAX=10                              01930000
- CASITEM ###@@@DSPLO/4        locate                                    01940000
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Record functions                                                    * 01910000
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ #ENTER  RC                                                             02230000
+ CASBEG  TYPE=VECTORED,REG=R3,MIN=0,MAX=4                               01930000
+ CASITEM 0                    __dsp_locate,                                     
    #TCOMM ,                                                             01950000
    PIPLOCAT ,                                                           01960000
-   #STREC ,                                                             01970000
- CASITEM ###@@@DSPPI/4        input                                     01980000
+   #STREC ,                                                                     
+ CASITEM 1                    __dsp_input,                                      
    #TCOMM ,                                                             01990000
    #LREC ,                                                              02000000
    PIPINPUT ,                                                           02010000
    #STREC ,                                                             02020000
- CASITEM ###@@@DSPPO/4        output                                    02030000
+ CASITEM 2                    __dsp_output,                                     
    #TCOMM ,                                                             02040000
    #LREC ,                                                              02050000
    PIPOUTP ,                                                            02060000
    #STREC ,                                                             02070000
- CASITEM 3                    commit                                    02080000
+ CASITEM 3                    __dsp_command,                                    
+   #LREC ,                                                              02160000
+   PIPCMD ,                                                             02170000
+ CASITEM 4                    __dsp_rexx,                                       
+   #LREC ,                                                              02190000
+   PIPREXX ,                                                            02200000
+ CASITEM ,                                                                      
+   APPLMSG TEXT='Usupported record function #&&1.',SUB=(DEC,(3))                
+ CASEND  ,                                                              02210000
+ #EXIT   ,                                                                      
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Integer functions                                                   *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ #ENTER  DI                                                                     
+ CASBEG  TYPE=VECTORED,REG=R3,MIN=0,MAX=3                               01930000
+ CASITEM 0                    __dsp_parm,                                       
+   PIPPARM ,                                                                    
+   STM   0,5,PARMS                                                              
+ CASITEM 1                    __dsp_short,                                      
+   PIPSHORT ,                                                           02140000
+ CASITEM 2                    __dsp_commit,                                     
    LR    R0,R6                Get level                                 02090000
    PIPCOMMT ,                                                           02100000
    FLAGON DIDCOMMIT                                                     02110000
- CASITEM ###@@@DSPSH/4        short                                     02120000
-   #TCOMM ,                                                             02130000
-   PIPSHORT ,                                                           02140000
- CASITEM ###@@@DSPCM/4        cmd                                       02150000
-   #LREC ,                                                              02160000
-   PIPCMD ,                                                             02170000
- CASITEM ###@@@REXX/4         rexx                                      02180000
-   #LREC ,                                                              02190000
-   PIPREXX ,                                                            02200000
+ CASITEM 3                    __dsp_select,                                     
+   LR    0,6                                                                    
+   LR    1,7                                                                    
+   PIPSEL ,                                                                     
+   ST    0,PARM0                                                                
+ CASITEM ,                                                                      
+   APPLMSG TEXT='Usupported integer function #&&1.',SUB=(DEC,(3))               
  CASEND  ,                                                              02210000
- #EXIT                                                                  02220000
+ #EXIT   ,                                                                      
+                                                       EJECT                    
+***********************************************************************         
+*                                                                     *         
+* Buffer services                                                     *         
+*                                                                     *         
+***********************************************************************         
+                                                     SPACE 2                    
+ #ENTER  BF                                                                     
+ CASBEG  TYPE=VECTORED,REG=R3,MIN=0,MAX=6                               01930000
+ CASITEM 0                                                                      
+   PIPBFRST BUF1                                                                
+ CASITEM 1                                                                      
+   AHI   0,7                                                                    
+   SRL   0,3                                                                    
+   PIPXTND BUF1,MSG=YES                                                         
+ CASITEM 2                                                                      
+   LR    4,6                                                                    
+   LR    5,7                                                                    
+   PIPBFRLD BUF1                                                                
+ CASITEM 3,4                                                                    
+   LR    4,6                                                                    
+   LR    5,7                                                                    
+   PIPBFRAP BUF1                                                                
+ CASITEM 5                                                                      
+   PIPBFRSU BUF1,TYPE=WORD                                                      
+   STM   4,5,PARM4                                                              
+   PIPBFROP BUF1,L,0,LEN                                                        
+   ST    0,PARM0                                                                
+ CASITEM 6                                                                      
+   PIPBFRSU BUF1                                                                
+   PIPOUTP ,                                                                    
+   PIPBFRST BUF1,R=14                                                           
+ CASITEM ,                                                                      
+   APPLMSG TEXT='Usupported buffer function #&&1.',SUB=(DEC,(3))                
+ CASEND  ,                                                                      
+ #EXIT   ,                                                                      
  MODEND  ,                                                                      

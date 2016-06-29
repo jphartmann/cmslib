@@ -47,8 +47,9 @@ call out '* Generated' date() time(),,
    ' FLAGDEF DIDCOMMIT',,
    'BUF1     PIPBFR 0',,
    'TOKEN    DS    D',,
-   "PARMS    DC    6F'0'          R0 - 5 for scanning",,
+   "PARMS    DS    6F'0'          R0 - 5 for scanning",,
    ' pbegin',,
+   ' stm 1,5,parms+4',,
    ' pipcall gccin',,
    ' pexit rc=(r15)',,
    'eptab loctr',,
@@ -190,7 +191,7 @@ do i = 5 to words(keywords)
       Then iterate
    call out cont(contd(word(keywords, i)'='kwd.i','))
 end
-call out contd('syntax=(:0,'kwd.2',=0,0,STOP)'),,
+call out contd('syntax=(=0,parms,:0,'kwd.2',=0,0,STOP)'),,
    'eptab loctr',,
    ' pipepten' kwd.1','pn',min='kwd.3,,
    'gccfilts loctr'
