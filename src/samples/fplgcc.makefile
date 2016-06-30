@@ -73,6 +73,7 @@ CFLAGS+=-m31 -march=g5 -fno-use-linker-plugin
 CFLAGS+=-fverbose-asm -g -Wall -Werror -Wno-pointer-sign
 EFLAGS:=-fexec-charset=IBM-1047 -Wno-format -O
 
+B:=${addsuffix .assemble,${ASMSRC}}
 A:=${addsuffix .assemble,${CSRC}}
 ASMS:=${addprefix $G/,$A}
 
@@ -80,8 +81,12 @@ ifdef NOTOK
 ${error make suppressed due to errors reported above.}
 endif
 
-all: ${ASMS}
+all: ${ASMS} $B
 	(cd $G && cat $A >@${LIB}.assemble)
+ifdef ASMSRC
+	cat $B >>$G/@${LIB}.assemble
+endif
+
 P:=echo put @${LIB}.assemble ${LIB}.assemble;
 
 ifdef EPTABLE
@@ -89,6 +94,7 @@ E:=${EPTABLE}.assemble
 all: $G/$E
 P+=echo put $E;
 endif
+
 
 nothing:
 	@echo Doing nothing.

@@ -1,6 +1,9 @@
 # cmslib
 Support for cross compiled C to native CMS and a C library.
 
+Except for the added `makefile` an unmodified version of `zlib-1.2.8`
+is cross compiled to `zlib.txtlib`.
+
 Required utilities and packages
 -------------------------------
 

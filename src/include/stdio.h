@@ -142,15 +142,18 @@ typedef unsigned long fpos_t;
 #define EOF -1
 #define L_tmpnam FILENAME_MAX
 #define TMP_MAX 25
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
 #define __WRITE_MODE 1
 #define __READ_MODE 2
 
 #define __RECFM_F 0
 #define __RECFM_V 1
 #define __RECFM_U 2
+
+#if !defined(SEEK_SET)
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+#endif
 
 #if !defined(__ZVM__)
 #define __NFILE (FOPEN_MAX - 3)

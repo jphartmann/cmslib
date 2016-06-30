@@ -4,7 +4,8 @@ GCC      TITLE 'Interface code for cross compiled C.                   +
 ***********************************************************************         
 *                                                                     *         
 * We  are  called  from  the common procedure.  R0 contains the       *         
-* address of the C program to run.  Other registers as per FPI.       *         
+* address  of  the C program to run.  R10 is the work area base       *         
+* (or should be).  Other registers as per FPI.                        *         
 *                                                                     *         
 * Change activity:                                                    *         
 * 27 Jun 2016  New module by John P. Hartmann.                        *         
@@ -48,7 +49,7 @@ PARM4    EQU   PARMS+4*4,4
      LR        R15,R1         Put stack pointer in place                        
      LA        R3,PARMS       The args record                                   
      LR        R2,10                                                            
-     L         R1,20(,R10)    C code                                            
+     L         R1,20(,R13)    C code                                            
      BASR      R14,R1         Go to C code                                      
      LR        8,2                                                              
      LM        R4,R5,GBLPTRS                                                    
