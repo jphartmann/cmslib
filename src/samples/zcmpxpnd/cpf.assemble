@@ -23,20 +23,20 @@ BUF1     PIPBFR 0
 TOKEN    DS    D                                                                
 PARMS    DS    6F                                                               
  PBEGIN  ,                                                                      
- LR      R1,R0                set parameter                                     
+ LR      1,0                                                                    
  L       R0,=V(ZLIBFILT)                                                        
  PIPCALL GCCIN                                                                  
  PEXIT   RC=(R15)                                                               
                                                      SPACE 1                    
 ZLCOMP   PIPDESC FP=NO,TYPE=FILTER,                                    +        
                COMMIT=-2,STOPABLE=NO,                                  +        
-               RUN_AUTHORISED=YES,                                     +        
+               RUN_AUTHORISED=YES,ARGS=NO,                             +        
                STREAMS=1,ENTRY=NO,                                     +        
                SYNTAX=(:0,0,=0,0,DONE)                                          
                                                      SPACE 1                    
 ZLXPND   PIPDESC FP=NO,TYPE=FILTER,                                    +        
                COMMIT=-2,STOPABLE=NO,                                  +        
-               RUN_AUTHORISED=YES,                                     +        
+               RUN_AUTHORISED=YES,ARGS=NO,                             +        
                STREAMS=1,ENTRY=NO,                                     +        
                SYNTAX=(:0,1,=0,0,DONE)                                          
  PROCEND ,                                                                      

@@ -42,6 +42,7 @@ __initcg ds 0d
 *  This leaves a using for R$ on the global                                     
  fi                                                                             
  clc cgeye,=c'g390'                                                             
+ la 15,0 Set return code OK                                                     
  ber 14 Seems OK  Return R4 too.                                                
 * First time                                                                    
  xc cmsgbl(20*4),cmsgbl                                                         

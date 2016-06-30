@@ -49,6 +49,8 @@ typedef int (* fplstage)(struct pipeanchor * panc, struct pipeparms * args);
 extern int fplgccpf(struct pipeanchor * panc, int subs, void * slist);
 
 extern int fplgccvt(struct pipeanchor * panc, int service);
+/* Conversion that needs R1 to point to a token                      */
+extern int fplgccvk(struct pipeanchor * panc, int service);
 /* Operations on a record                                            */
 extern int fplgccrc(struct pipeanchor * panc, int service, struct piperecord * rec);
 enum __record_function
@@ -119,7 +121,7 @@ enum __buffer_function
 /* MSGEP EQU 8*4 msg                                                 */
 #define piperm(anc)    fplgccvt(anc, 8, (union fplparm) prm, 0)
 /* CVTTK EQU 9*4                                                     */
-#define piptstkw(anc) fplgccvt(anc, 09)
+#define piptstkw(anc) fplgccvk(anc, 09)
 /* CVTNP EQU 10*4                                                    */
 #define pipnupl(anc) fplgccvt(anc, 10)
 /* CVTGW EQU 11*4                                                    */
@@ -127,9 +129,9 @@ enum __buffer_function
 /* CVTGD EQU 12*4                                                    */
 #define pipdwrd(anc) fplgccvt(anc, 12)
 /* CVTST EQU 13*4                                                    */
-#define piputkn(anc) fplgccvt(anc, 13)
+#define piputkn(anc) fplgccvk(anc, 13)
 /* CVTMT EQU 14*4                                                    */
-#define pipmtkn(anc) fplgccvt(anc, 14)
+#define pipmtkn(anc) fplgccvk(anc, 14)
 /* CVTSD EQU 15*4                                                    */
 #define pipsdel(anc) fplgccvt(anc, 15)
 /* CVTHW EQU 16*4                                                    */
