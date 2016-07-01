@@ -30,9 +30,12 @@ PARMS    DS    6F
                                                      SPACE 1                    
 ZLCOMP   PIPDESC FP=NO,TYPE=FILTER,                                    +        
                COMMIT=-2,STOPABLE=NO,                                  +        
-               RUN_AUTHORISED=YES,ARGS=NO,                             +        
+               RUN_AUTHORISED=YES,                                     +        
                STREAMS=1,ENTRY=NO,                                     +        
-               SYNTAX=(:0,0,=0,0,DONE)                                          
+               SYNTAX=(:0,0,=0,0,                                      +        
+               WORD,?Z,(:0,-1), Take default                           +        
+               (DECWD,?NZ58),                                          +        
+               =0,5,DONE)                                                       
                                                      SPACE 1                    
 ZLXPND   PIPDESC FP=NO,TYPE=FILTER,                                    +        
                COMMIT=-2,STOPABLE=NO,                                  +        

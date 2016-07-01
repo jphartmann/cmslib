@@ -11,90 +11,101 @@
 #include <stdio.h>
 #include <cmsbase.h>
 
-#define CLEVEL Z_DEFAULT_COMPRESSION
-
 /* Forward declarations:                                             */
-static int error(const char * msg, int rv);
 static int primein(struct pipeanchor * panc, struct piperecord * pr, z_stream * zs);
+static int process(struct pipeanchor * panc, struct pipeparms * args,
+   const int expand, z_stream * pz);
 /* End of forward declarations.                                      */
+
+/*********************************************************************/
+/* Initialise the z stream.  Close on exit.                          */
+/*********************************************************************/
 
 int
 zlibfilt(struct pipeanchor * panc, struct pipeparms * args)
 {
    const int expand = args->endrange;
-   unsigned char out[4096];
    int rv;
+   z_stream zstream = {.opaque = 0, };
+
+   if (expand) rv = inflateInit(&zstream);
+   else
+   {
+      int level = args->word.length;  /* -1 for default              */
+
+      if (0 > level || 9 < level) level = Z_DEFAULT_COMPRESSION;
+      rv = deflateInit(&zstream, level);
+   }
+
+   if (Z_OK != rv) return __sayf("Error %d on z Init.", rv), rv;
+
+   rv = process(panc, args, expand, &zstream);
+
+   if(expand) inflateEnd(&zstream);
+   else deflateEnd(&zstream);
+
+   return rv;
+}
+
+/*********************************************************************/
+/* Main processing loop                                              */
+/*********************************************************************/
+
+static int
+process(struct pipeanchor * panc, struct pipeparms * args,
+   const int expand, z_stream * pz)
+{
+   unsigned char out[4096];
    struct piperecord inrec;
    struct piperecord outrec = { out, sizeof(out) };
-   z_stream zstream = {.opaque = 0, };
    int deflatesync = Z_NO_FLUSH;
    int inrv = 0;                      /* OK so far                   */
+   int rv;
 
-   rv = expand ? inflateInit(&zstream) : deflateInit(&zstream, CLEVEL);
-   if (Z_OK != rv) return error("init", rv);
    rv = pipcommit(panc, 0);
-   if (rv)
-   {
-      __sayf("commit rc %d\n", rv);
-      rv = 0;
-      goto error;
-   }
+   if (rv) return 0;
 
-   rv = primein(panc, &inrec, &zstream);
-   if (rv)
-   {
-      if (12 == rv) rv = 0;
-      goto error;
-   }
+   rv = primein(panc, &inrec, pz);
+   if (rv) return 12 == rv ? 0 : rv;
 
-   zstream.next_out = out;
-   zstream.avail_out = sizeof(out);
+   pz->next_out = out;
+   pz->avail_out = sizeof(out);
 
    for(;;)
    {
       int ain, aout;
 
-      if (!zstream.avail_in && !inrv)
+      if (!pz->avail_in && !inrv)
       {
+         /* Release current record                                   */
          inrec.length = 0;
          rv = pipinput(panc, &inrec);
+         if (rv) return rv;
+
+         inrv = rv = primein(panc, &inrec, pz);
          if (rv)
          {
-            error("pipinput", rv);
-            goto error;
-         }
-         inrv = rv = primein(panc, &inrec, &zstream);
-         if (12 == rv)
-         {
+            if (12 != rv) return rv;
             deflatesync = Z_FINISH;
             rv = 0;
          }
-         else if (rv) goto error;
       }
-      if (!zstream.avail_out)
+      if (!pz->avail_out)
       {
          rv = pipoutput(panc, &outrec);
-         if (12 == rv)
-         {
-            rv = 0;
-            goto error;
-         }
-         if (rv)
-         {
-            error("pipeout", rv);
-            goto error;
-         }
+         if (rv) return 12 == rv ? 0 : rv;
+
          outrec.length = sizeof(out);
-         zstream.next_out = out;
-         zstream.avail_out = sizeof(out);
+         pz->next_out = out;
+         pz->avail_out = sizeof(out);
       }
 
-      ain = zstream.avail_in;
-      aout = zstream.avail_out;
+      ain = pz->avail_in;
+      aout = pz->avail_out;
 
       rv = expand
-         ? inflate(&zstream, Z_SYNC_FLUSH)
-         : deflate(&zstream, deflatesync);
+         ? inflate(pz, Z_SYNC_FLUSH)
+         : deflate(pz, deflatesync);
 
       switch (rv)
       {
@@ -108,51 +119,47 @@ zlibfilt(struct pipeanchor * panc, struct pipeparms * args)
                inrec.length = 0;
                rv = pipinput(panc, &inrec);
             }
-            outrec.length = sizeof(out) - zstream.avail_out;
+            outrec.length = sizeof(out) - pz->avail_out;
             if (outrec.length)
             {
                rv = pipoutput(panc, &outrec);
-               if (rv && rv != 12) error("pipeout", rv);
+               if (rv) return 12 == rv ? 0 : rv;
             }
 
-            goto error;
+            return 0;
          default:
             __sayf("in/deflate rv %d", rv);
-            goto error;
+            return rv;
       }
 
-      if (ain == zstream.avail_in && aout == zstream.avail_out)
+      if (ain == pz->avail_in && aout == pz->avail_out)
       {
          __sayf("No data processed.  inrv %d avail in %d avail out %d",
-            inrv, zstream.avail_in, zstream.avail_out);
+            inrv, pz->avail_in, pz->avail_out);
          break;                       /* Don't loop                  */
       }
    }
-
-error:
-   if(expand) inflateEnd(&zstream);
-   else deflateEnd(&zstream);
-   return rv;
+   return 0;
 }
+
+/*********************************************************************/
+/* Get next non-null record from the input.                          */
+/*********************************************************************/
 
 static int
 primein(struct pipeanchor * panc, struct piperecord * pr, z_stream * zs)
 {
-   int rv = piplocate(panc, pr);
-   if (rv)
+   for (;;)
    {
-      if (12 == rv) return rv;
-      return error("locate", rv);
+      int rv = piplocate(panc, pr);
+
+      if (rv) return rv;
+      if (pr->length) break;
+      rv = pipinput(panc, pr);
+      if (rv) return rv;
    }
 
    zs->next_in = pr->ptr;
    zs->avail_in = pr->length;
    return 0;
-}
-
-static int
-error(const char * msg, int rv)
-{
-   __sayf("Error on %s: %d", msg, rv);
-   return 10;
 }

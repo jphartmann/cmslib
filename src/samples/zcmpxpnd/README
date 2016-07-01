@@ -1,0 +1,29 @@
+This sample shows how to use the zlib compression library.
+
+Use "make up" to compile and upload the contents of the filter package.
+
+On CMS:
+
+Address COMMAND
+signal on error
+'GLOBAL MACLIB FPLGPI FPLOM DMSGPI FPLG2A'
+'HLASM ZLIBSTG (TERM BATCH'
+'EXEC FPLLINKP ZLIBSTG (LIB ZLIB'
+signal off error
+'NUCXDROP ZLIBSTG'
+'ZLIBSTG'
+
+The filter package contains two filters:
+
+ZLIB COMPRESS|DEFLATE [<number>]
+
+The number specifies the compression level from 0 (no compression) to 9,
+which is the most aggressive.  A number that is not 0..9 is treated as
+Z_DEFAULT_COMPRESSION.
+
+ZLIB EXPAND|INFLATE
+
+The programs operate on a byte stream; you will likely perform some kind
+of blocking to retain record boundaries.  Adding a line end character is
+likely to lead to most efficient compression, but ADDRDW SF4 is the most
+general.
